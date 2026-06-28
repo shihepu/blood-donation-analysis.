@@ -1324,6 +1324,10 @@
         }
 
         // ===================== 智能对话框 =====================
+        const DIFY_API_URL = 'https://api.dify.ai/v1/chat-messages';
+        const DIFY_API_KEY = 'app-dY7jp8Dy4SK1SQBF5acixcIg';
+        let conversationId = '';
+
         function toggleChatbot() {
             const container = document.getElementById('chatbot');
             const toggle = document.getElementById('chatToggle');
