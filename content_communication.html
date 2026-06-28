@@ -1584,6 +1584,22 @@
             container.scrollTop = container.scrollHeight;
         }
 
+        function addLoadingMessage() {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message bot';
+            div.id = 'loading-' + Date.now();
+            div.innerHTML = `<div class="chat-bubble bot">🤔 思考中...</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div.id;
+        }
+
+        function removeLoadingMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
         function generateChatReply(msg) {
             if (msg.includes('传播')) {
                 return '📡 传播分析：视频传播内容通过雷达图展示在五个维度上的分布情况。点击"帮我分析"按钮可获取详细的传播-接收匹配分析，包括最强/最弱传播维度识别、错位检测和优化建议。';
