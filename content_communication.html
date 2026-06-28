@@ -1,0 +1,1655 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>热血心声：面向无偿献血的多模态舆情分析与决策支持系统</title>
+    <script src="https://cdn.jsdelivr.net/npm/vega@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5"></script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f8f9fc;
+            color: #1a1a2e;
+            min-height: 100vh;
+            padding-bottom: 100px;
+        }
+        .nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+        }
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a1a2e;
+            background: none;
+            -webkit-text-fill-color: #1a1a2e;
+        }
+        .nav-links a {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: 0.3s;
+            margin-left: 1rem;
+        }
+        .nav-links a:hover, .nav-links a.active {
+            color: #1a202c;
+            background: #edf2f7;
+        }
+        .container { padding: 1.5rem; max-width: 1400px; margin: 0 auto; }
+
+        /* 视频筛选栏 */
+        .video-filter-bar {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 0.8rem;
+            background: #ffffff;
+            border-radius: 12px;
+            padding: 0.6rem 1rem;
+            margin-bottom: 1rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .video-filter-bar input,
+        .video-filter-bar select {
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            color: #1a202c;
+            padding: 0.3rem 0.6rem;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .video-filter-bar input:focus,
+        .video-filter-bar select:focus { border-color: #3182ce; }
+        .video-filter-bar .video-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            flex: 1;
+            max-height: 80px;
+            overflow-y: auto;
+        }
+        .video-filter-bar .video-btn {
+            padding: 0.2rem 0.6rem;
+            background: #edf2f7;
+            border: 1px solid transparent;
+            border-radius: 12px;
+            color: #2d3748;
+            font-size: 0.75rem;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: 0.2s;
+        }
+        .video-filter-bar .video-btn:hover { background: #d2dce8; color: #1a202c; }
+        .video-filter-bar .video-btn.active { background: #3182ce; color: #fff; border-color: #3182ce; }
+
+        .video-section {
+            display: grid;
+            grid-template-columns: 2fr 1fr;
+            gap: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+        .video-player {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+        }
+        .video-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+        }
+        .video-controls { display: flex; gap: 0.5rem; }
+        .control-btn {
+            width: 36px; height: 36px;
+            border-radius: 50%;
+            background: #edf2f7;
+            border: none;
+            color: #2d3748;
+            cursor: pointer;
+        }
+        .video-frame {
+            width: 100%;
+            aspect-ratio: 16/9;
+            background: #f1f5f9;
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        .video-frame iframe { width: 100%; height: 100%; border: none; }
+        .video-info {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+        }
+        .info-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 0.5rem 0;
+            border-bottom: 1px solid #edf2f7;
+        }
+        .info-item:last-child { border-bottom: none; }
+        .info-label { color: #718096; font-size: 0.85rem; font-weight: 700; }
+        .info-value {
+            margin-left: 1rem;
+            max-width: 72%;
+            color: #1a202c;
+            font-weight: 500;
+            text-align: right;
+            overflow-wrap: anywhere;
+        }
+        .topic-tags { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+        .topic-tag {
+            padding: 0.2rem 0.6rem;
+            background: #edf2f7;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            color: #2d3748;
+        }
+        /* 核心观点悬浮高亮 */
+        #videoCoreViewWrapper {
+            transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+        }
+        #videoCoreViewWrapper:hover {
+            background: #e8edf4;
+            box-shadow: 0 2px 12px rgba(49, 130, 206, 0.15);
+            transform: translateY(-1px);
+        }
+        .chart-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+            margin-bottom: 1.5rem;
+        }
+        .chart-title { font-size: 1.1rem; font-weight: 600; margin-bottom: 1rem; display: flex; justify-content: space-between; align-items: center; color: #1a1a2e; }
+        .chart-container { width: 100%; height: 350px; }
+        .radar-container { height: 550px;margin:0 auto }
+        .comments-preview { margin-top: 1rem; }
+        .comment-group { background: #f7fafc; border-radius: 10px; padding: 1rem; margin-bottom: 1rem; }
+        .comment-group h5 { margin-bottom: 0.5rem; color: #4a5568; }
+        .comment-item {
+            padding: 0.6rem;
+            border-left: 3px solid #3182ce;
+            margin-bottom: 0.5rem;
+            background: #f7fafc;
+            border-radius: 6px;
+        }
+        .comment-content { font-size: 0.85rem; line-height: 1.4; color: #1a202c; }
+        .comment-meta { display: flex; justify-content: space-between; font-size: 0.75rem; color: #4a5568; margin-top: 0.3rem; }
+        .comment-filters {
+            display: flex;
+            gap: 0.8rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+        .comment-filters select {
+            padding: 0.2rem 0.5rem;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 6px;
+            color: #1a202c;
+            font-size: 0.8rem;
+            outline: none;
+        }
+        .btn-analysis {
+            padding: 0.4rem 1.2rem;
+            background: #3182ce;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+        .btn-analysis:hover { transform: translateY(-2px); box-shadow: 0 4px 15px rgba(49,130,206,0.4); }
+        .insight-box {
+            margin-top: 1rem;
+            padding: 0.8rem 1rem;
+            background: #f7fafc;
+            border-radius: 10px;
+            border-left: 4px solid #3182ce;
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #1a202c;
+        }
+
+        /* 智能对话框 - 白色主题（与public一致） */
+        .chatbot-container {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 340px;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.12);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            max-height: 500px;
+            transition: max-height 0.3s;
+        }
+        .chatbot-container.collapsed { max-height: 60px; overflow: hidden; }
+        .chatbot-header {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #f7fafc;
+            border-radius: 16px 16px 0 0;
+        }
+        .chatbot-header .title { font-weight: 600; display: flex; align-items: center; gap: 0.5rem; color: #1a202c; }
+        .chatbot-header .toggle-btn { background: none; border: none; color: #4a5568; font-size: 1.2rem; cursor: pointer; }
+        .chatbot-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            max-height: 300px;
+            background: #ffffff;
+        }
+        .chat-message { max-width: 90%; }
+        .chat-message.bot { align-self: flex-start; }
+        .chat-message.user { align-self: flex-end; }
+        .chat-bubble {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .chat-bubble.bot { background: #edf2f7; color: #1a202c; border-radius: 12px 12px 12px 4px; }
+        .chat-bubble.user { background: #3182ce; color: #ffffff; border-radius: 12px 12px 4px 12px; }
+        .preset-questions {
+            padding: 0.5rem 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            border-top: 1px solid #edf2f7;
+            background: #f7fafc;
+        }
+        .preset-btn {
+            padding: 0.3rem 0.7rem;
+            background: #edf2f7;
+            border: none;
+            border-radius: 12px;
+            color: #2d3748;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .preset-btn:hover { background: #d2dce8; color: #1a202c; }
+        .chatbot-input {
+            padding: 0.5rem 1rem;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            gap: 0.5rem;
+            background: #ffffff;
+        }
+        .chatbot-input input {
+            flex: 1;
+            padding: 0.5rem 0.8rem;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            color: #1a202c;
+            outline: none;
+            font-size: 0.85rem;
+        }
+        .chatbot-input button {
+            padding: 0.5rem 1rem;
+            background: #3182ce;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+        }
+        @media (max-width: 768px) {
+            .video-section { grid-template-columns: 1fr; }
+            .video-filter-bar .video-list { max-height: 60px; }
+        }
+
+        /* Desktop integrated dashboard: video and analyses share one viewport. */
+        @media (min-width: 1180px) and (min-height: 720px) {
+            html, body { height: 100%; overflow: hidden; }
+            body { min-height: 0; padding-bottom: 0; }
+            .nav-bar { height: 58px; padding: 0.55rem 1.25rem; }
+            .nav-title { font-size: clamp(1rem, 1.25vw, 1.35rem); }
+            .container {
+                height: calc(100vh - 58px);
+                max-width: none;
+                padding: 10px 14px 12px;
+                display: grid;
+                grid-template-columns: repeat(2, minmax(0, 1fr));
+                grid-template-rows: 48px repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                overflow: hidden;
+            }
+            .video-filter-bar { grid-column: 1 / -1; margin: 0; padding: 0.35rem 0.7rem; min-width: 0; }
+            .video-filter-bar .video-list { max-height: 34px; flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; }
+            .video-section {
+                min-width: 0;
+                min-height: 0;
+                margin: 0;
+                gap: 10px;
+                grid-template-columns: minmax(0, 1.55fr) minmax(220px, 0.8fr);
+            }
+            .video-player, .video-info, .chart-card { min-width: 0; min-height: 0; padding: 0.7rem; border-radius: 12px; }
+            .video-player { display: flex; flex-direction: column; }
+            .video-header { flex: 0 0 auto; margin-bottom: 0.3rem; }
+            .video-frame { flex: 1 1 auto; min-height: 0; aspect-ratio: auto; }
+            .video-info { gap: 0.22rem; overflow-y: auto; }
+            .info-item { padding: 0.18rem 0; }
+            .chart-card {
+                margin: 0;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .chart-title { flex: 0 0 auto; margin-bottom: 0.3rem; font-size: 0.95rem; }
+            .chart-container,
+            .radar-container {
+                flex: 1 1 auto;
+                width: 100%;
+                height: auto !important;
+                min-height: 0;
+                overflow: hidden;
+            }
+            .comments-preview { flex: 1 1 auto; min-height: 0; margin-top: 0.2rem; overflow-y: auto; }
+            .comment-group { padding: 0.5rem; margin-bottom: 0.45rem; }
+            .comment-item { padding: 0.35rem; margin-bottom: 0.3rem; }
+            .insight-box {
+                flex: 0 0 31px;
+                margin-top: 0.3rem;
+                padding: 0.35rem 0.55rem;
+                font-size: 0.72rem;
+                line-height: 1.35;
+                white-space: nowrap;
+                overflow-x: auto;
+                overflow-y: hidden;
+            }
+            .btn-analysis { flex: 0 0 auto; align-self: flex-start; margin-top: 0.25rem !important; padding: 0.22rem 0.7rem; font-size: 0.72rem; }
+            .chatbot-container { right: 0.8rem; bottom: 0.8rem; }
+        }
+
+        /* In-page chart enlargement and complete small-chart previews. */
+        .chart-expand-btn {
+            margin-left: auto;
+            padding: 0.28rem 0.65rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 7px;
+            background: #fff;
+            color: #2b6cb0;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .2s, border-color .2s, transform .2s;
+        }
+        .chart-expand-btn:hover { background: #ebf8ff; border-color: #3182ce; transform: translateY(-1px); }
+        .chart-card:not(.is-expanded) .chart-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-card:not(.is-expanded) .chart-container > .vega-embed,
+        .chart-card:not(.is-expanded) .chart-container > .vega-embed > div {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-card:not(.is-expanded) .vega-embed svg,
+        .chart-card:not(.is-expanded) .vega-embed canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+        }
+        /* The assistant starts collapsed: plus when closed, minus when open. */
+        .chatbot-header .toggle-btn { font-size: 0; }
+        .chatbot-header .toggle-btn::before { content: '\2212'; font-size: 1.2rem; }
+        .chatbot-container.collapsed .toggle-btn::before { content: '+'; }
+        body.chart-expanded::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1999;
+            background: rgba(15, 23, 42, .52);
+            backdrop-filter: blur(3px);
+        }
+        /* Vega appends tooltips to body; keep them above the enlargement mask. */
+        .vg-tooltip { z-index: 3100 !important; }
+        .chart-card.is-expanded .vega-embed,
+        .chart-card.is-expanded .vega-embed svg,
+        .chart-card.is-expanded .vega-embed canvas { pointer-events: auto !important; }
+        .chart-card.is-expanded {
+            position: fixed;
+            inset: 22px;
+            z-index: 2000;
+            width: auto;
+            height: auto;
+            max-height: calc(100vh - 44px);
+            margin: 0;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            overflow: auto;
+            border-radius: 16px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .3);
+        }
+        .chart-card.is-expanded .chart-title { flex: 0 0 auto; margin-bottom: .7rem; font-size: 1.15rem; }
+        .chart-card.is-expanded .chart-container {
+            flex: 1 0 auto;
+            height: min(64vh, 720px) !important;
+            min-height: 460px;
+            overflow: visible;
+        }
+        .chart-card.is-expanded .comments-preview {
+            flex: 1 0 auto;
+            min-height: 460px;
+            max-height: 62vh;
+            overflow: auto;
+        }
+        .chart-card.is-expanded .insight-box {
+            flex: 0 0 auto;
+            min-height: 50px;
+            white-space: normal;
+            overflow: visible;
+            font-size: .9rem;
+            line-height: 1.55;
+        }
+    </style>
+</head>
+<body>
+    <div class="nav-bar">
+        <div class="nav-title">❤️ 热血心声：面向无偿献血的多模态舆情分析与决策支持系统</div>
+        <div class="nav-links">
+            <a href="public_feedback.html">公众反馈侧</a>
+            <a href="#" class="active">传播内容侧</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 视频筛选栏 -->
+        <div class="video-filter-bar">
+            <input type="text" id="videoSearch" placeholder="搜索标题..." oninput="filterVideoList()">
+            <select id="themeFilter" onchange="filterVideoList()">
+                <option value="all">全部主题</option>
+            </select>
+            <div class="video-list" id="videoList"></div>
+        </div>
+
+        <!-- 视频播放区 -->
+        <div class="video-section">
+            <div class="video-player">
+                <div class="video-header">
+                    <span id="videoCounter" style="color:#94a3b8;font-size:0.85rem;"></span>
+                    <div class="video-controls">
+                        <button class="control-btn" onclick="prevVideo()">◀</button>
+                        <button class="control-btn" onclick="nextVideo()">▶</button>
+                    </div>
+                </div>
+                <div class="video-frame">
+                    <iframe id="videoPlayer" src="" allowfullscreen></iframe>
+                </div>
+            </div>
+            <div class="video-info">
+                <div class="info-item"><span class="info-label">标题</span><span class="info-value" id="videoTitle">--</span></div>
+                <div class="info-item"><span class="info-label">UP主</span><span class="info-value" id="videoAuthor">--</span></div>
+                <div class="info-item"><span class="info-label">发布时间</span><span class="info-value" id="videoDate">--</span></div>
+                <div class="info-item"><span class="info-label">播放量</span><span class="info-value" id="videoViews">--</span></div>
+                <div class="info-item"><span class="info-label">点赞数</span><span class="info-value" id="videoLikes">--</span></div>
+                <div><div class="info-label" style="margin-bottom:0.3rem;">小主题</div><div class="topic-tags" id="videoTags"></div></div>
+                <div><div class="info-label" style="margin-bottom:0.3rem;">大主题</div><div class="topic-tags" id="videoBigThemes"></div></div>
+                <div style="margin-top:0.5rem;">
+                    <span class="info-label">核心观点</span>
+                    <div id="videoCoreViewWrapper" style="
+                        margin-top: 0.3rem;
+                        padding: 0.5rem 0.8rem;
+                        background: #f0f4f8;
+                        border-radius: 8px;
+                        border-left: 4px solid #3182ce;
+                        transition: background 0.3s ease, box-shadow 0.3s ease, transform 0.2s ease;
+                        cursor: default;
+                    ">
+                        <div id="videoCoreView" style="
+                            font-size: 0.95rem;
+                            line-height: 1.6;
+                            color: #1a202c;
+                            font-weight: 500;
+                        ">--</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 雷达图 -->
+        <div class="chart-card">
+            <div class="chart-title">📡 传播-接收对比雷达图</div>
+            <div class="chart-container radar-container" id="radarChart"></div>
+            <div class="insight-box" id="radarInsight">📡 传播-接收匹配分析：雷达图对比视频传播内容（蓝色）与评论关注度（橙色）在五个维度上的表现。悬停查看具体占比数值，可识别内容传播与用户反馈之间的错位关系。</div>
+            <button class="btn-analysis" onclick="analyzeRadar()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 评论区主题分布（22小主题） -->
+        <div class="chart-card">
+            <div class="chart-title">📊 评论区主题分布（小主题）</div>
+            <div class="chart-container" id="barChart"></div>
+            <div class="insight-box" id="barInsight">📊 评论主题分布：柱状图展示当前视频评论在22个小主题上的分布情况，颜色区分5个大主题。点击柱体可筛选对应小主题的评论，深入了解用户讨论焦点。</div>
+            <button class="btn-analysis" onclick="analyzeBar()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 视频评论列表 -->
+        <div class="chart-card">
+            <div class="chart-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>💬 视频评论列表</span>
+                <div class="comment-filters">
+                    <span style="color:#94a3b8;font-size:0.8rem;">情感：</span>
+                    <select id="sentimentFilter" onchange="updateCommentList()">
+                        <option value="all">全部</option>
+                        <option value="正向">正向</option>
+                        <option value="中性">中性</option>
+                        <option value="负向">负向</option>
+                    </select>
+                    <span style="color:#94a3b8;font-size:0.8rem;">小主题：</span>
+                    <select id="subThemeFilter" onchange="updateCommentList()">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+            </div>
+            <div class="comments-preview" id="commentList"></div>
+            <div class="insight-box" id="commentInsight">💬 评论洞察：展示当前视频点赞数最高的前5条评论，支持按情感倾向（正向/中性/负向）和小主题进行筛选，快速定位用户核心观点。</div>
+            <button class="btn-analysis" onclick="analyzeCommentInsight()" style="margin-top:0.5rem;">解读评论</button>
+        </div>
+    </div>
+
+    <!-- 智能对话框 -->
+    <div class="chatbot-container collapsed" id="chatbot">
+        <div class="chatbot-header" onclick="toggleChatbot()">
+            <span class="title">🤖 智能助手</span>
+            <span class="toggle-btn" id="chatToggle">−</span>
+        </div>
+        <div class="chatbot-messages" id="chatMessages">
+            <div class="chat-message bot">
+                <div class="chat-bubble bot">您好！我是传播内容分析助手，可为您提供视频传播分析、错位解读、评论洞察、优化建议。点击预设问题快速获取结论。</div>
+            </div>
+        </div>
+        <div class="preset-questions">
+            <button class="preset-btn" onclick="sendPreset('传播分析')">传播分析</button>
+            <button class="preset-btn" onclick="sendPreset('错位解读')">错位解读</button>
+            <button class="preset-btn" onclick="sendPreset('评论洞察')">评论洞察</button>
+            <button class="preset-btn" onclick="sendPreset('优化建议')">优化建议</button>
+        </div>
+        <div class="chatbot-input">
+            <input type="text" id="chatInput" placeholder="输入问题..." onkeyup="if(event.key==='Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // ===================== 全局数据 =====================
+        let fullData = [];
+        let videoData = [];
+        let currentIndex = 0;
+        let currentFilteredVideos = [];
+        let currentVideoComments = [];
+        let selectedSubTheme = null; // 用于柱状图点击筛选
+
+        // 主题映射（与公众反馈侧一致）
+        const THEME_MAPPING = {
+            '社会责任':'献血动机与心理认知','献血动机':'献血动机与心理认知','献血光荣':'献血动机与心理认知',
+            '献血上瘾':'献血动机与心理认知','献血恐惧':'献血动机与心理认知','献血奖励':'献血动机与心理认知',
+            '献血条件':'献血流程与现场服务','献血体验':'献血流程与现场服务','医护服务':'献血流程与现场服务',
+            '信息咨询':'献血流程与现场服务','献血记录':'献血流程与现场服务','献血量与频率':'献血流程与现场服务',
+            '献血有益健康':'献血后健康与副作用','献血副作用':'献血后健康与副作用',
+            '血站信任':'血站管理与用血政策','报销问题':'血站管理与用血政策','用血收费':'血站管理与用血政策',
+            '血液管理':'血站管理与用血政策','政策讨论':'血站管理与用血政策','献血证作用':'血站管理与用血政策',
+            '稀有血型讨论':'血站管理与用血政策',
+            '其他':'其他'
+        };
+        const BIG_COLORS = {
+            '献血动机与心理认知': '#b7433f',
+            '献血流程与现场服务': '#d8844c',
+            '献血后健康与副作用': '#e3b65c',
+            '血站管理与用血政策': '#5b8fa8',
+            '其他': '#6f7d8c'
+        };
+        // 提取所有小主题（按THEME_MAPPING的key去重）
+        const allSubThemes = Object.keys(THEME_MAPPING);
+        // 获取大主题列表
+        const bigThemes = ['献血动机与心理认知','献血流程与现场服务','献血后健康与副作用','血站管理与用血政策','其他'];
+
+        // ===================== 数据加载 =====================
+        async function loadData() {
+            try {
+                const [fullResp, videoResp] = await Promise.all([
+                    fetch('data/full_data.json'),
+                    fetch('data/video_data.json')
+                ]);
+                fullData = await fullResp.json();
+                const videoJson = await videoResp.json();
+                videoData = videoJson.videos || [];
+                console.log('数据加载完成，评论数:', fullData.length, '视频数:', videoData.length);
+                initPage();
+            } catch(e) {
+                console.error('加载数据失败:', e);
+                document.body.innerHTML = '<p style="color:red;padding:2rem;">数据加载失败，请确保 data/ 目录下的 JSON 文件存在。</p>';
+            }
+        }
+
+        // ===================== 初始化页面 =====================
+        function initPage() {
+            // 填充主题筛选下拉
+            const themeSelect = document.getElementById('themeFilter');
+            themeSelect.innerHTML = '<option value="all">全部主题</option>';
+            bigThemes.forEach(t => {
+                const opt = document.createElement('option');
+                opt.value = t;
+                opt.textContent = t;
+                themeSelect.appendChild(opt);
+            });
+            // 填充小主题筛选下拉（评论列表）
+            populateSubThemeFilter('subThemeFilter');
+
+            const params = new URLSearchParams(window.location.search);
+            const bigTheme = params.get('bigTheme');
+            if (bigTheme && bigThemes.includes(bigTheme)) {
+                themeSelect.value = bigTheme;}
+            // 初始化视频列表
+            filterVideoList();
+            // 加载第一个视频
+            if (currentFilteredVideos.length > 0) {
+                loadVideoByIndex(0);
+            }
+        }
+
+        function populateSubThemeFilter(selectId) {
+            const sel = document.getElementById(selectId);
+            sel.innerHTML = '<option value="all">全部</option>';
+            allSubThemes.forEach(st => {
+                const opt = document.createElement('option');
+                opt.value = st;
+                opt.textContent = st;
+                sel.appendChild(opt);
+            });
+        }
+
+        // ===================== 视频列表与筛选 =====================
+        function filterVideoList() {
+            const search = document.getElementById('videoSearch').value.toLowerCase();
+            const theme = document.getElementById('themeFilter').value;
+            currentFilteredVideos = videoData.filter(v => {
+                const titleMatch = v.title.toLowerCase().includes(search);
+                const themeMatch = (theme === 'all') || (v.big_themes && v.big_themes.includes(theme));
+                return titleMatch && themeMatch;
+            });
+            renderVideoButtons();
+            // 如果当前索引超出范围，重置
+            if (currentIndex >= currentFilteredVideos.length) currentIndex = 0;
+            if (currentFilteredVideos.length > 0) {
+                loadVideoByIndex(currentIndex);
+            } else {
+                document.getElementById('videoTitle').textContent = '无匹配视频';
+                document.getElementById('videoPlayer').src = '';
+                document.getElementById('videoCounter').textContent = '0 / 0';
+            }
+        }
+
+        function renderVideoButtons() {
+            const container = document.getElementById('videoList');
+            container.innerHTML = '';
+            currentFilteredVideos.forEach((v, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'video-btn' + (i === currentIndex ? ' active' : '');
+                btn.textContent = v.title.length > 20 ? v.title.slice(0,20)+'…' : v.title;
+                btn.title = v.title;
+                btn.onclick = () => loadVideoByIndex(i);
+                container.appendChild(btn);
+            });
+            document.getElementById('videoCounter').textContent = `${currentIndex+1} / ${currentFilteredVideos.length}`;
+        }
+
+        function loadVideoByIndex(index) {
+            if (index < 0 || index >= currentFilteredVideos.length) return;
+            currentIndex = index;
+            const video = currentFilteredVideos[index];
+            // 更新播放器
+            document.getElementById('videoPlayer').src = video.url || '';
+            document.getElementById('videoTitle').textContent = video.title || '--';
+            document.getElementById('videoAuthor').textContent = video.author || '--';
+            document.getElementById('videoDate').textContent = video.publish_time || '--';
+            document.getElementById('videoViews').textContent = video.views ? video.views.toLocaleString() : '--';
+            document.getElementById('videoLikes').textContent = video.likes ? video.likes.toLocaleString() : '--';
+            document.getElementById('videoTags').innerHTML = (video.tags || []).map(t => `<span class="topic-tag">#${t}</span>`).join('');
+            document.getElementById('videoBigThemes').innerHTML = (video.big_themes || []).map(b => `<span class="topic-tag">${b}</span>`).join('');
+            document.getElementById('videoCoreView').textContent = video.core_view || '--';
+            // 更新按钮高亮
+            document.querySelectorAll('.video-btn').forEach((btn, i) => btn.classList.toggle('active', i === index));
+            document.getElementById('videoCounter').textContent = `${index+1} / ${currentFilteredVideos.length}`;
+
+            // 根据视频标题筛选评论
+            const videoTitle = video.title;
+            currentVideoComments = fullData.filter(item => item.视频标题 === videoTitle);
+            // 更新雷达图、柱状图、评论列表
+            renderRadar(video);
+            renderBar(video);
+            updateCommentList();
+        }
+
+        function prevVideo() {
+            if (currentIndex > 0) loadVideoByIndex(currentIndex - 1);
+        }
+        function nextVideo() {
+            if (currentIndex < currentFilteredVideos.length - 1) loadVideoByIndex(currentIndex + 1);
+        }
+
+        // ===================== 雷达图 =====================
+        function renderRadar(video) {
+            const dims = bigThemes;
+            const videoRadar = video['视频雷达'] || [0,0,0,0,0];
+            const commentRadar = video['评论雷达'] || [0,0,0,0,0];
+            
+            const maxRadius = 100;
+            const axisLen = 110;
+            const labelRadius = 118;
+
+            const angles = dims.map((_, i) => (i / dims.length) * 2 * Math.PI - Math.PI/2);
+
+            // 数据点
+            const points = [];
+            dims.forEach((d, i) => {
+                const angle = angles[i];
+                const r1 = videoRadar[i] * 100;
+                const r2 = commentRadar[i];
+                const vDisplay = (videoRadar[i] * 100).toFixed(0) + '%';
+                const cDisplay = commentRadar[i].toFixed(0) + '%';
+                points.push({
+                    series: '视频传播',
+                    dim: d,
+                    x: Math.cos(angle) * r1,
+                    y: Math.sin(angle) * r1,
+                    value: videoRadar[i],
+                    display: vDisplay
+                });
+                points.push({
+                    series: '评论接收',
+                    dim: d,
+                    x: Math.cos(angle) * r2,
+                    y: Math.sin(angle) * r2,
+                    value: commentRadar[i],
+                    display: cDisplay
+                });
+            });
+
+            // 轴射线
+            const axisLines = dims.map((d, i) => ({
+                x1: 0, y1: 0,
+                x2: Math.cos(angles[i]) * axisLen,
+                y2: Math.sin(angles[i]) * axisLen,
+                dim: d
+            }));
+
+            // 刻度
+            const tickValues = [0, 25, 50, 75, 100];
+            const tickMarks = [];
+            const tickLabels = [];
+            dims.forEach((d, i) => {
+                const angle = angles[i];
+                tickValues.forEach(v => {
+                    const r = v;
+                    const x = Math.cos(angle) * r;
+                    const y = Math.sin(angle) * r;
+                    const perpAngle = angle + Math.PI/2;
+                    const tickLen = 4;
+                    tickMarks.push({
+                        x1: x + Math.cos(perpAngle) * tickLen,
+                        y1: y + Math.sin(perpAngle) * tickLen,
+                        x2: x - Math.cos(perpAngle) * tickLen,
+                        y2: y - Math.sin(perpAngle) * tickLen,
+                        value: v, dim: d
+                    });
+                    const textR = r + 6;
+                    tickLabels.push({
+                        x: Math.cos(angle) * textR,
+                        y: Math.sin(angle) * textR,
+                        text: v + '%',
+                        dim: d
+                    });
+                });
+            });
+
+            // 维度标签
+            const labelTexts = dims.map((d, i) => ({
+                x: Math.cos(angles[i]) * labelRadius,
+                y: Math.sin(angles[i]) * labelRadius,
+                text: d,
+                dim: d
+            }));
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 540,
+                "layer": [
+                    // 轴射线
+                    {
+                        "data": { "values": axisLines },
+                        "mark": { "type": "rule", "color": "#94a3b8", "strokeDash": [3, 3], "strokeWidth": 1.2 },
+                        "encoding": {
+                            "x": { "field": "x1", "type": "quantitative", "axis": null, "scale": { "domain": [-130, 130] } },
+                            "y": { "field": "y1", "type": "quantitative", "axis": null, "scale": { "domain": [-130, 130] } },
+                            "x2": { "field": "x2" },
+                            "y2": { "field": "y2" }
+                        }
+                    },
+                    // 刻度线
+                    {
+                        "data": { "values": tickMarks },
+                        "mark": { "type": "rule", "color": "#94a3b8", "strokeWidth": 1.2 },
+                        "encoding": {
+                            "x": { "field": "x1", "type": "quantitative" },
+                            "y": { "field": "y1", "type": "quantitative" },
+                            "x2": { "field": "x2" },
+                            "y2": { "field": "y2" }
+                        }
+                    },
+                    // 刻度文本
+                    {
+                        "data": { "values": tickLabels },
+                        "mark": { "type": "text", "fontSize": 8, "color": "#64748b", "align": "center", "baseline": "middle" },
+                        "encoding": {
+                            "x": { "field": "x", "type": "quantitative" },
+                            "y": { "field": "y", "type": "quantitative" },
+                            "text": { "field": "text", "type": "nominal" }
+                        }
+                    },
+                    // 维度标签
+                    {
+                        "data": { "values": labelTexts },
+                        "mark": { "type": "text", "fontSize": 11, "fontWeight": "bold", "color": "#1a1a2e", "align": "center", "baseline": "middle" },
+                        "encoding": {
+                            "x": { "field": "x", "type": "quantitative" },
+                            "y": { "field": "y", "type": "quantitative" },
+                            "text": { "field": "text", "type": "nominal" }
+                        }
+                    },
+                    // 数据连线
+                    {
+                        "data": { "values": points },
+                        "mark": { "type": "line", "interpolate": "linear-closed", "strokeWidth": 2.5, "opacity": 0.85 },
+                        "encoding": {
+                            "x": { "field": "x", "type": "quantitative" },
+                            "y": { "field": "y", "type": "quantitative" },
+                            "color": {
+                                "field": "series",
+                                "type": "nominal",
+                                "scale": { "domain": ["视频传播", "评论接收"], "range": ["#60a5fa", "#f97316"] },
+                                "legend": { "title": null }
+                            },
+                            "order": { "field": "dim", "type": "nominal" },
+                            "tooltip": [
+                                { "field": "dim", "title": "维度" },
+                                { "field": "series", "title": "类型" },
+                                { "field": "display", "title": "占比" }
+                            ]
+                        }
+                    },
+                    // 数据点
+                    {
+                        "data": { "values": points },
+                        "mark": { "type": "circle", "size": 70, "opacity": 0.9, "stroke": "white", "strokeWidth": 1.5 },
+                        "encoding": {
+                            "x": { "field": "x", "type": "quantitative" },
+                            "y": { "field": "y", "type": "quantitative" },
+                            "color": {
+                                "field": "series",
+                                "type": "nominal",
+                                "scale": { "domain": ["视频传播", "评论接收"], "range": ["#60a5fa", "#f97316"] }
+                            },
+                            "tooltip": [
+                                { "field": "dim", "title": "维度" },
+                                { "field": "series", "title": "类型" },
+                                { "field": "display", "title": "占比" }
+                            ]
+                        }
+                    }
+                ],
+                "config": {
+                    "view": { "stroke": "transparent" },
+                    "axis": { "grid": false, "labels": false, "ticks": false }
+                }
+            };
+
+            vegaEmbed('#radarChart', spec, { actions: false });
+        }
+
+        // ===================== 柱状图（22小主题） =====================
+        function renderBar(video) {
+            // 从当前视频的评论中统计各小主题频次
+            const comments = currentVideoComments;
+            const subCount = {};
+            allSubThemes.forEach(st => subCount[st] = 0);
+            comments.forEach(item => {
+                if (item.小主题详情) {
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            if (subCount.hasOwnProperty(t)) subCount[t]++;
+                        });
+                    } catch(e) {}
+                }
+            });
+            // 构建数据
+            const data = allSubThemes.map(st => ({
+                subTheme: st,
+                count: subCount[st] || 0,
+                bigTheme: THEME_MAPPING[st] || '其他'
+            })).filter(d => d.count > 0);
+
+            if (data.length === 0) {
+                vegaEmbed('#barChart', { data: { values: [] }, mark: 'bar', config: { view: { stroke: 'transparent' } } }, { actions: false });
+                return;
+            }
+
+            // 颜色按大主题映射
+            const colorDomain = bigThemes;
+            const colorRange = bigThemes.map(t => BIG_COLORS[t] || '#cccccc');
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 300,
+                "data": { "values": data },
+                "mark": { "type": "bar", "cornerRadiusEnd": 4, "tooltip": true },
+                "encoding": {
+                    "x": {
+                        "field": "subTheme",
+                        "type": "nominal",
+                        "title": "小主题",
+                        "axis": { "labelAngle": -45, "labelFontSize": 9, "titleFontSize": 11 },
+                        "sort": "-y"
+                    },
+                    "y": { "field": "count", "type": "quantitative", "title": "评论数" },
+                    "color": {
+                        "field": "bigTheme",
+                        "type": "nominal",
+                        "scale": { "domain": colorDomain, "range": colorRange },
+                        "legend": { "title": "大主题", "labelFontSize": 9 }
+                    },
+                    "tooltip": [
+                        {"field": "subTheme", "title": "小主题"},
+                        {"field": "count", "title": "评论数"},
+                        {"field": "bigTheme", "title": "大主题"}
+                    ]
+                },
+                "config": {"view": {"stroke": "transparent"}}
+            };
+
+            vegaEmbed('#barChart', spec, { actions: false }).then(res => {
+                // 点击柱体筛选评论
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum) {
+                        const subTheme = item.datum.subTheme;
+                        // 更新筛选器并刷新评论列表
+                        document.getElementById('subThemeFilter').value = subTheme;
+                        selectedSubTheme = subTheme;
+                        updateCommentList();
+                        document.getElementById('barInsight').innerHTML = `已筛选小主题 “${subTheme}” 的评论，下方列表已更新。`;
+                    }
+                });
+            });
+        }
+
+        function analyzeRadar() {
+            if (currentFilteredVideos.length === 0 || currentIndex >= currentFilteredVideos.length) {
+                document.getElementById('radarInsight').innerHTML = '📡 请先选择一个视频查看雷达图分析。';
+                return;
+            }
+            const video = currentFilteredVideos[currentIndex];
+            const videoRadar = video['视频雷达'] || [0,0,0,0,0];
+            const commentRadar = video['评论雷达'] || [0,0,0,0,0];
+            
+            let insightHtml = '📡 传播-接收匹配深度分析：<br><br>';
+            
+            const dims = bigThemes;
+            const maxVideoDim = dims[videoRadar.indexOf(Math.max(...videoRadar))];
+            const maxCommentDim = dims[commentRadar.indexOf(Math.max(...commentRadar))];
+            const minVideoDim = dims[videoRadar.indexOf(Math.min(...videoRadar))];
+            const minCommentDim = dims[commentRadar.indexOf(Math.min(...commentRadar))];
+            
+            insightHtml += '【传播内容分析】<br>';
+            insightHtml += `视频在 "${maxVideoDim}" 维度传播力最强（占比 ${(Math.max(...videoRadar)*100).toFixed(0)}%），表明视频着重传递这方面的信息。<br>`;
+            insightHtml += `在 "${minVideoDim}" 维度传播较弱（占比 ${(Math.min(...videoRadar)*100).toFixed(0)}%），该方向内容较少。<br><br>`;
+            
+            insightHtml += '【评论接收分析】<br>';
+            insightHtml += `评论在 "${maxCommentDim}" 维度关注度最高（占比 ${Math.max(...commentRadar).toFixed(0)}%），说明用户最关心这个话题。<br>`;
+            insightHtml += `在 "${minCommentDim}" 维度关注度较低（占比 ${Math.min(...commentRadar).toFixed(0)}%），用户讨论较少。<br><br>`;
+            
+            insightHtml += '【错位识别】<br>';
+            let mismatchFound = false;
+            dims.forEach((dim, i) => {
+                const diff = Math.abs(videoRadar[i] * 100 - commentRadar[i]);
+                if (diff > 20) {
+                    mismatchFound = true;
+                    if (videoRadar[i] * 100 > commentRadar[i]) {
+                        insightHtml += `⚠️ "${dim}"：视频传播占比 ${(videoRadar[i]*100).toFixed(0)}%，但评论仅 ${commentRadar[i].toFixed(0)}%，内容传递未引起用户共鸣。<br>`;
+                    } else {
+                        insightHtml += `⚠️ "${dim}"：视频传播占比 ${(videoRadar[i]*100).toFixed(0)}%，但评论达 ${commentRadar[i].toFixed(0)}%，用户需求未被满足。<br>`;
+                    }
+                }
+            });
+            if (!mismatchFound) {
+                insightHtml += '✅ 传播与接收较为匹配，视频内容精准触达用户关注点。<br>';
+            }
+            
+            document.getElementById('radarInsight').innerHTML = insightHtml;
+        }
+
+        function analyzeBar() {
+            const comments = currentVideoComments;
+            if (!comments || comments.length === 0) {
+                document.getElementById('barInsight').innerHTML = '📊 当前视频暂无评论数据，无法进行主题分布分析。';
+                return;
+            }
+            
+            const subCount = {};
+            allSubThemes.forEach(st => subCount[st] = 0);
+            comments.forEach(item => {
+                if (item.小主题详情) {
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            if (subCount.hasOwnProperty(t)) subCount[t]++;
+                        });
+                    } catch(e) {}
+                }
+            });
+            
+            const total = Object.values(subCount).reduce((a,b) => a+b, 0);
+            const sortedThemes = Object.entries(subCount).filter(([k,v]) => v > 0).sort((a,b) => b[1]-a[1]);
+            
+            let insightHtml = '📊 评论主题分布深度分析：<br><br>';
+            
+            insightHtml += `【整体概况】当前视频共有 ${comments.length} 条评论，涉及 ${sortedThemes.length} 个小主题。<br><br>`;
+            
+            insightHtml += '【热门主题TOP3】<br>';
+            sortedThemes.slice(0, 3).forEach(([theme, count], i) => {
+                const percentage = ((count / total) * 100).toFixed(1);
+                const bigTheme = THEME_MAPPING[theme] || '其他';
+                insightHtml += `${i+1}. "${theme}"（大主题：${bigTheme}）：${count}条评论，占比${percentage}%<br>`;
+            });
+            if (sortedThemes.length === 0) {
+                insightHtml += '暂无有效主题数据。<br>';
+            }
+            insightHtml += '<br>';
+            
+            insightHtml += '【大主题分布】<br>';
+            const bigCount = {};
+            bigThemes.forEach(b => bigCount[b] = 0);
+            sortedThemes.forEach(([theme, count]) => {
+                const bigTheme = THEME_MAPPING[theme] || '其他';
+                bigCount[bigTheme] += count;
+            });
+            Object.entries(bigCount).filter(([k,v]) => v > 0).forEach(([big, count]) => {
+                const percentage = ((count / total) * 100).toFixed(1);
+                insightHtml += `• ${big}：${count}条评论，占比${percentage}%<br>`;
+            });
+            
+            insightHtml += '<br>💡 建议：点击柱体可筛选查看具体评论内容，深入理解用户在各主题上的观点。';
+            
+            document.getElementById('barInsight').innerHTML = insightHtml;
+        }
+
+        // ===================== 评论列表 =====================
+        function updateCommentList() {
+            const sentiment = document.getElementById('sentimentFilter').value;
+            const subTheme = document.getElementById('subThemeFilter').value;
+            // 从当前视频评论中筛选
+            let filtered = currentVideoComments.slice();
+            if (sentiment !== 'all') {
+                filtered = filtered.filter(item => item.情感倾向 === sentiment);
+            }
+            if (subTheme !== 'all') {
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => d.主题 === subTheme);
+                    } catch(e) { return false; }
+                });
+            }
+            // 按点赞数排序（假设有点赞数，若无则用随机）
+            filtered.sort((a, b) => (b.点赞数 || 0) - (a.点赞数 || 0));
+            // 取前5
+            const top5 = filtered.slice(0, 5);
+            renderCommentList(top5);
+            // 更新解读框
+            updateCommentInsight(top5);
+        }
+
+        function renderCommentList(comments) {
+            const container = document.getElementById('commentList');
+            if (!comments || comments.length === 0) {
+                container.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:1rem;">暂无评论</p>';
+                return;
+            }
+            let html = '';
+            comments.forEach(c => {
+                const content = c.评论内容 || '（无内容）';
+                const likes = c.点赞数 || 0;
+                const sentiment = c.情感倾向 || '中性';
+                const sentimentColor = sentiment === '正向' ? '#22c55e' : (sentiment === '负向' ? '#ef4444' : '#94a3b8');
+                html += `<div class="comment-item">
+                            <div class="comment-content">${content}</div>
+                            <div class="comment-meta">
+                                <span>👍 ${likes}</span>
+                                <span style="color:${sentimentColor};">${sentiment}</span>
+                            </div>
+                        </div>`;
+            });
+            container.innerHTML = html;
+        }
+
+        function updateCommentInsight(comments) {
+            if (comments.length === 0) {
+                document.getElementById('commentInsight').innerHTML = '💬 当前筛选条件下无评论，请调整筛选条件后重试。';
+                return;
+            }
+            
+            const sentCount = { '正向':0, '中性':0, '负向':0 };
+            const themeCount = {};
+            let totalLikes = 0;
+            
+            comments.forEach(c => {
+                const sent = c.情感倾向 || '中性';
+                sentCount[sent] = (sentCount[sent] || 0) + 1;
+                totalLikes += c.点赞数 || 0;
+                if (c.小主题详情) {
+                    try {
+                        const details = JSON.parse(c.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            themeCount[t] = (themeCount[t] || 0) + 1;
+                        });
+                    } catch(e) {}
+                }
+            });
+            
+            const total = comments.length;
+            const avgLikes = total > 0 ? (totalLikes / total).toFixed(1) : 0;
+            
+            let insightHtml = '💬 评论洞察：<br><br>';
+            
+            insightHtml += `【基本统计】显示点赞前${total}条评论，平均点赞数 ${avgLikes}。<br><br>`;
+            
+            insightHtml += '【情感分布】<br>';
+            Object.entries(sentCount).forEach(([k,v]) => {
+                if (v > 0) {
+                    const percentage = ((v / total) * 100).toFixed(0);
+                    const color = k === '正向' ? '#22c55e' : (k === '负向' ? '#ef4444' : '#94a3b8');
+                    insightHtml += `• <span style="color:${color};">${k}</span>：${v}条 (${percentage}%)<br>`;
+                }
+            });
+            insightHtml += '<br>';
+            
+            const sortedThemes = Object.entries(themeCount).sort((a,b) => b[1]-a[1]);
+            insightHtml += '【主题聚焦】<br>';
+            if (sortedThemes.length > 0) {
+                sortedThemes.slice(0, 3).forEach(([theme, count]) => {
+                    const percentage = ((count / total) * 100).toFixed(0);
+                    insightHtml += `• "${theme}"：${count}条 (${percentage}%)<br>`;
+                });
+            } else {
+                insightHtml += '暂无主题数据。<br>';
+            }
+            
+            insightHtml += '<br>💡 点击"解读评论"按钮获取更详细的深度分析。';
+            
+            document.getElementById('commentInsight').innerHTML = insightHtml;
+        }
+
+        function analyzeCommentInsight() {
+            const comments = currentVideoComments;
+            if (!comments || comments.length === 0) {
+                document.getElementById('commentInsight').innerHTML = '💬 当前视频暂无评论数据，无法进行评论洞察分析。';
+                return;
+            }
+            
+            const sentiment = document.getElementById('sentimentFilter').value;
+            const subTheme = document.getElementById('subThemeFilter').value;
+            
+            let filtered = comments.slice();
+            if (sentiment !== 'all') {
+                filtered = filtered.filter(item => item.情感倾向 === sentiment);
+            }
+            if (subTheme !== 'all') {
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => d.主题 === subTheme);
+                    } catch(e) { return false; }
+                });
+            }
+            
+            filtered.sort((a, b) => (b.点赞数 || 0) - (a.点赞数 || 0));
+            const displayComments = filtered.slice(0, 5);
+            
+            if (displayComments.length === 0) {
+                document.getElementById('commentInsight').innerHTML = '💬 当前筛选条件下无评论，请调整筛选条件后重试。';
+                return;
+            }
+            
+            const sentCount = { '正向':0, '中性':0, '负向':0 };
+            const themeCount = {};
+            let totalLikes = 0;
+            
+            displayComments.forEach(c => {
+                const sent = c.情感倾向 || '中性';
+                sentCount[sent] = (sentCount[sent] || 0) + 1;
+                totalLikes += c.点赞数 || 0;
+                if (c.小主题详情) {
+                    try {
+                        const details = JSON.parse(c.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            themeCount[t] = (themeCount[t] || 0) + 1;
+                        });
+                    } catch(e) {}
+                }
+            });
+            
+            const total = displayComments.length;
+            const avgLikes = total > 0 ? (totalLikes / total).toFixed(1) : 0;
+            const maxLikesComment = displayComments[0];
+            
+            let insightHtml = '💬 评论洞察深度分析：<br><br>';
+            
+            insightHtml += `【基本统计】共筛选出 ${filtered.length} 条评论，展示点赞前${total}条，平均点赞数 ${avgLikes}。<br><br>`;
+            
+            insightHtml += '【情感分布】<br>';
+            Object.entries(sentCount).forEach(([k,v]) => {
+                const percentage = ((v / total) * 100).toFixed(0);
+                const color = k === '正向' ? '#22c55e' : (k === '负向' ? '#ef4444' : '#94a3b8');
+                insightHtml += `• <span style="color:${color};">${k}</span>：${v}条，占比${percentage}%<br>`;
+            });
+            insightHtml += '<br>';
+            
+            const sortedThemes = Object.entries(themeCount).sort((a,b) => b[1]-a[1]);
+            insightHtml += '【主题聚焦】<br>';
+            if (sortedThemes.length > 0) {
+                sortedThemes.slice(0, 3).forEach(([theme, count]) => {
+                    const percentage = ((count / total) * 100).toFixed(0);
+                    insightHtml += `• "${theme}"：${count}条评论，占比${percentage}%<br>`;
+                });
+            } else {
+                insightHtml += '暂无主题数据。<br>';
+            }
+            insightHtml += '<br>';
+            
+            insightHtml += '【高赞评论示例】<br>';
+            const sampleContent = maxLikesComment.评论内容 || '';
+            const preview = sampleContent.length > 50 ? sampleContent.slice(0, 50) + '...' : sampleContent;
+            insightHtml += `点赞最高评论（${maxLikesComment.点赞数 || 0}赞）：${preview}<br><br>`;
+            
+            insightHtml += '💡 建议：通过筛选不同情感和主题，深入了解各类用户的观点和诉求，为内容优化提供依据。';
+            
+            document.getElementById('commentInsight').innerHTML = insightHtml;
+        }
+
+        // ===================== 智能对话框 =====================
+        function toggleChatbot() {
+            const container = document.getElementById('chatbot');
+            const toggle = document.getElementById('chatToggle');
+            container.classList.toggle('collapsed');
+            toggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            addChatMessage('user', msg);
+            input.value = '';
+            const loadingId = addLoadingMessage();
+            try {
+                const response = await fetch(DIFY_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${DIFY_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: {},
+                        query: msg,
+                        response_mode: 'streaming',
+                        conversation_id: conversationId,
+                        user: 'web-user'
+                    })
+                });
+                removeLoadingMessage(loadingId);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API 错误:', errorText);
+                    addChatMessage('bot', '❌ 服务请求失败，请检查 API 密钥或网络。');
+                    return;
+                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let botMessageDiv = null;
+                let fullAnswer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (!trimmedLine) continue;
+                        if (trimmedLine.startsWith('data: ')) {
+                            const dataStr = trimmedLine.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const event = JSON.parse(dataStr);
+                                console.log('收到事件:', event);
+                                if (event.event === 'agent_message' || event.event === 'message') {
+                                    const answer = event.answer || '';
+                                    if (answer) {
+                                        fullAnswer += answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        // 流式过程中实时追加原始内容（最终会被清洗覆盖）
+                                        botMessageDiv.textContent += answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'agent_thought') {
+                                    if (event.answer) {
+                                        fullAnswer += event.answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        botMessageDiv.textContent += event.answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'node_finished' && event.data && event.data.output) {
+                                    const output = event.data.output;
+                                    if (output) {
+                                        let answer = typeof output === 'string' ? output : JSON.stringify(output);
+                                        fullAnswer += answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        botMessageDiv.textContent += answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'message_end' || event.event === 'agent_end' || event
+                                    .event === 'workflow_finished') {
+                                    if (event.conversation_id) {
+                                        conversationId = event.conversation_id;
+                                    }
+                                } else if (event.event === 'error') {
+                                    console.error('流式错误:', event);
+                                    if (!botMessageDiv) {
+                                        addChatMessage('bot', '❌ 处理过程中出现错误。');
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('解析流数据失败:', e, dataStr);
+                            }
+                        }
+                    }
+                }
+                // 流式循环结束，进行清洗并覆盖最终显示
+                if (!botMessageDiv && !fullAnswer) {
+                    addChatMessage('bot', '⚠️ 未获取到有效回复，可能 Agent 没有返回内容。');
+                } else if (botMessageDiv) {
+                    // 清洗最终答案
+                    const cleaned = cleanAssistantReply(fullAnswer);
+                    // 将换行转换为 <br> 并转义特殊字符以防止 XSS
+                    const escaped = cleaned.replace(/[&<>"]/g, function(m) {
+                        if (m === '&') return '&amp;';
+                        if (m === '<') return '&lt;';
+                        if (m === '>') return '&gt;';
+                        if (m === '"') return '&quot;';
+                        return m;
+                    });
+                    botMessageDiv.innerHTML = escaped.replace(/\n/g, '<br>');
+                    const container = document.getElementById('chatMessages');
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (error) {
+                console.error('网络请求异常:', error);
+                removeLoadingMessage(loadingId);
+                addChatMessage('bot', '🌐 网络连接异常，请检查网络后重试。');
+            }
+        }
+
+        function sendPreset(type) {
+            if (currentFilteredVideos.length === 0 || currentIndex >= currentFilteredVideos.length) {
+                addChatMessage('bot', '请先选择一个视频，我将基于视频数据为您分析。');
+                return;
+            }
+            
+            const video = currentFilteredVideos[currentIndex];
+            const comments = currentVideoComments;
+            const videoRadar = video['视频雷达'] || [0,0,0,0,0];
+            const commentRadar = video['评论雷达'] || [0,0,0,0,0];
+            
+            let reply = '';
+            
+            if (type === '传播分析') {
+                const dims = bigThemes;
+                const maxVideoDim = dims[videoRadar.indexOf(Math.max(...videoRadar))];
+                const maxVideoVal = (Math.max(...videoRadar) * 100).toFixed(0);
+                const minVideoDim = dims[videoRadar.indexOf(Math.min(...videoRadar))];
+                const minVideoVal = (Math.min(...videoRadar) * 100).toFixed(0);
+                
+                reply = `📡 传播分析：\n\n【视频传播特征】\n• 最强传播维度："${maxVideoDim}"，占比${maxVideoVal}%\n• 最弱传播维度："${minVideoDim}"，占比${minVideoVal}%\n\n【传播策略评估】\n视频在"${maxVideoDim}"方面表现突出，说明该主题是视频的核心内容方向。但"${minVideoDim}"维度传播较弱，建议考虑适当补充相关内容以丰富传播视角。\n\n【数据来源】视频标题：${video.title || '未获取'}，播放量：${video.views ? video.views.toLocaleString() : '--'}`;
+            } else if (type === '错位解读') {
+                const dims = bigThemes;
+                let mismatchStr = '';
+                let matchedCount = 0;
+                
+                dims.forEach((dim, i) => {
+                    const diff = Math.abs(videoRadar[i] * 100 - commentRadar[i]);
+                    if (diff > 15) {
+                        mismatchStr += `• "${dim}"：视频传播${(videoRadar[i]*100).toFixed(0)}% vs 评论关注${commentRadar[i].toFixed(0)}%\n`;
+                    } else {
+                        matchedCount++;
+                    }
+                });
+                
+                if (mismatchStr) {
+                    reply = `🔍 错位解读：\n\n【传播-接收错位识别】\n以下维度存在明显错位（差异>15%）：\n${mismatchStr}\n\n【错位原因分析】\n• 视频传播高但评论关注低：说明内容传递未能有效激发用户讨论\n• 视频传播低但评论关注高：说明用户有潜在需求未被视频满足\n\n【建议】针对错位维度，调整视频内容策略，增强用户关切点的覆盖。`;
+                } else {
+                    reply = `🔍 错位解读：\n\n【传播-接收匹配度】\n✅ 视频传播与评论接收在各维度上匹配度较高（差异<15%），说明视频内容精准触达了用户关注点。\n\n【建议】保持当前内容策略，可进一步挖掘高关注度维度的深度内容。`;
+                }
+            } else if (type === '评论洞察') {
+                if (!comments || comments.length === 0) {
+                    reply = '💬 评论洞察：当前视频暂无评论数据，无法进行评论分析。';
+                } else {
+                    const sentCount = { '正向':0, '中性':0, '负向':0 };
+                    comments.forEach(c => {
+                        const sent = c.情感倾向 || '中性';
+                        sentCount[sent]++;
+                    });
+                    const total = comments.length;
+                    const posPct = ((sentCount['正向'] / total) * 100).toFixed(0);
+                    const negPct = ((sentCount['负向'] / total) * 100).toFixed(0);
+                    
+                    reply = `💬 评论洞察：\n\n【评论概况】\n• 评论总数：${total}条\n• 正向评论：${sentCount['正向']}条（${posPct}%）\n• 中性评论：${sentCount['中性']}条\n• 负向评论：${sentCount['负向']}条（${negPct}%）\n\n【情感倾向分析】\n${posPct > 60 ? '整体情感偏正向' : posPct < 40 ? '整体情感偏负向' : '整体情感较为中性'}，${negPct > 20 ? '需关注负向评论中的问题反馈' : '负向评论占比较低，用户反馈良好'}。\n\n【建议】点击下方"解读评论"按钮，查看更详细的评论主题分析。`;
+                }
+            } else if (type === '优化建议') {
+                const dims = bigThemes;
+                let suggestions = [];
+                
+                dims.forEach((dim, i) => {
+                    const diff = videoRadar[i] * 100 - commentRadar[i];
+                    if (diff < -15) {
+                        suggestions.push(`• 增强"${dim}"内容：用户关注度高但视频传播不足`);
+                    }
+                });
+                
+                if (videoRadar[3] < 0.2) {
+                    suggestions.push('• 增加政策解读内容：血站管理与用血政策是用户高频关注话题');
+                }
+                
+                if (suggestions.length === 0) {
+                    suggestions.push('• 当前视频传播策略较为均衡，建议持续保持');
+                    suggestions.push('• 可尝试增加互动环节，提升用户参与度');
+                }
+                
+                suggestions.push('\n💡 通用建议：');
+                suggestions.push('1. 在视频中增加真实用户案例分享，增强说服力');
+                suggestions.push('2. 添加政策解读和报销流程说明，解答用户疑虑');
+                suggestions.push('3. 加强评论区互动，及时回应用户问题');
+                
+                reply = `🎯 优化建议：\n\n${suggestions.join('\n')}`;
+            }
+            
+            addChatMessage('bot', reply);
+        }
+
+        function cleanAssistantReply(text) {
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+            // 将单个换行替换为空格，保留双换行作为段落分隔
+            text = text.replace(/\n{2,}/g, '\n\n').replace(/([^\n])\n([^\n])/g, '$1 $2');
+            // 再按特殊符号插入换行
+            text = text.replace(/\*\*/g, '\n');
+            text = text.replace(/【/g, '\n【');
+            text = text.replace(/---/g, '\n---\n');
+            text = text.replace(/\n{3,}/g, '\n\n');
+            return text.trim();
+        }
+
+        function addChatMessage(type, text) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message ' + type;
+            let displayText = text;
+            if (type === 'bot') {
+                displayText = cleanAssistantReply(text);
+            }
+            const formattedText = type === 'bot' ? displayText.replace(/\n/g, '<br>') : displayText;
+            div.innerHTML = `<div class="chat-bubble ${type}">${formattedText}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function generateChatReply(msg) {
+            if (msg.includes('传播')) {
+                return '📡 传播分析：视频传播内容通过雷达图展示在五个维度上的分布情况。点击"帮我分析"按钮可获取详细的传播-接收匹配分析，包括最强/最弱传播维度识别、错位检测和优化建议。';
+            }
+            if (msg.includes('错位')) {
+                return '🔍 错位解读：当视频传播内容与用户评论关注点存在差异时，即为传播-接收错位。系统会自动识别差异超过15%的维度，并分析其原因（内容未引起共鸣或用户需求未被满足）。';
+            }
+            if (msg.includes('评论')) {
+                return '💬 评论洞察：系统展示当前视频点赞最高的评论，支持按情感倾向和小主题筛选。点击"解读评论"按钮可获取评论的情感分布、主题聚焦和高赞评论示例分析。';
+            }
+            if (msg.includes('优化')) {
+                return '🎯 优化建议：基于传播-接收匹配分析结果，系统会自动生成针对性的优化建议，包括内容调整方向、政策解读补充、用户案例增加等具体措施。';
+            }
+            if (msg.includes('献血')) {
+                return '❤️ 无偿献血舆情分析：本系统面向无偿献血领域，提供多模态舆情分析与决策支持。传播内容侧聚焦视频内容传播与用户评论接收的匹配分析，帮助优化献血宣传内容策略。';
+            }
+            if (msg.includes('主题')) {
+                return '📊 主题分析：系统将无偿献血相关讨论划分为5个大主题和22个小主题，包括献血动机与心理认知、献血流程与现场服务、献血后健康与副作用、血站管理与用血政策等。';
+            }
+            return '您好！我是传播内容分析助手，可为您提供以下分析服务：\n\n• 传播分析：分析视频在各维度的传播力\n• 错位解读：识别传播内容与用户关注的差异\n• 评论洞察：深入分析评论的情感和主题分布\n• 优化建议：基于数据分析提供内容优化方向\n\n请点击预设按钮或输入关键词（传播、错位、评论、优化）获取分析。';
+        }
+        window.onload = loadData;
+    </script>
+    <script>
+        // Expand a complete analysis card without leaving this page.
+        (() => {
+            const cards = [...document.querySelectorAll('.chart-card')];
+            const refreshCharts = () => window.dispatchEvent(new Event('resize'));
+            const closeAll = () => {
+                cards.forEach(card => {
+                    card.classList.remove('is-expanded');
+                    const button = card.querySelector('.chart-expand-btn');
+                    if (button) {
+                        button.textContent = '展开';
+                        button.setAttribute('aria-label', '展开图表');
+                    }
+                });
+                document.body.classList.remove('chart-expanded');
+                setTimeout(refreshCharts, 60);
+            };
+            cards.forEach(card => {
+                const title = card.querySelector('.chart-title');
+                if (!title) return;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chart-expand-btn';
+                button.textContent = '展开';
+                button.setAttribute('aria-label', '展开图表');
+                button.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const opening = !card.classList.contains('is-expanded');
+                    closeAll();
+                    if (opening) {
+                        card.classList.add('is-expanded');
+                        document.body.classList.add('chart-expanded');
+                        button.textContent = '收起';
+                        button.setAttribute('aria-label', '收起图表');
+                        setTimeout(refreshCharts, 80);
+                    }
+                });
+                title.appendChild(button);
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeAll();
+            });
+        })();
+    </script>
+</body>
+</html>

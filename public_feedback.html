@@ -1,0 +1,2937 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>热血心声：面向无偿献血的多模态舆情分析与决策支持系统</title>
+    <!-- Vega-Lite & Vega-Embed -->
+    <script src="https://cdn.jsdelivr.net/npm/vega@5">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-lite@5">
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/vega-embed@6">
+    </script>
+    <!-- Plotly for network -->
+    <script src="https://cdn.plot.ly/plotly-2.27.0.min.js">
+    </script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        body {
+            font-family: 'Segoe UI', 'Microsoft YaHei', sans-serif;
+            background: #f8f9fc;
+            color: #1a1a2e;
+            overflow-x: hidden;
+            padding-bottom: 100px;
+        }
+        .nav-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 1rem 2rem;
+            background: #ffffff;
+            border-bottom: 1px solid #e2e8f0;
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+        .nav-title {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #1a1a2e;
+            background: none;
+            -webkit-text-fill-color: #1a1a2e;
+        }
+        .nav-links a {
+            color: #4a5568;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            border-radius: 8px;
+            transition: 0.3s;
+            margin-left: 1rem;
+        }
+        .nav-links a:hover,
+        .nav-links a.active {
+            color: #1a202c;
+            background: #edf2f7;
+        }
+        .container {
+            padding: 1.5rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.2rem;
+            margin-bottom: 2rem;
+        }
+        .stat-card {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            text-align: center;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            cursor: default;
+        }
+        .stat-card:hover {
+            transform: translateY(-4px) scale(1.02);
+            box-shadow: 0 8px 25px rgba(0, 0, 0, 0.08);
+            border-color: #3182ce;
+        }
+        .stat-value {
+            font-size: 2.2rem;
+            font-weight: 700;
+            color: #2b6cb0;
+            background: none;
+            -webkit-text-fill-color: #2b6cb0;
+        }
+        .stat-label {
+            color: #4a5568;
+            margin-top: 0.3rem;
+            font-size: 0.9rem;
+        }
+
+        .chart-section {
+            background: #ffffff;
+            border-radius: 16px;
+            padding: 1.5rem;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+            margin-bottom: 2rem;
+        }
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+        .chart-title {
+            font-size: 1.2rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #1a1a2e;
+        }
+        .chart-container {
+            width: 100%;
+            height: 420px;
+            min-height: 300px;
+        }
+        .chart-container.network {
+            height: 500px;
+        }
+        .streamgraph-layout {
+            display: grid;
+            grid-template-rows: 480px 320px;
+            gap: 1.2rem;
+            min-height: 850px;
+            margin-bottom: 1.2rem;
+        }
+        .streamgraph-panel {
+            min-height: 0;
+        }
+        .streamgraph-subtitle {
+            color: #64748b;
+            font-size: 0.85rem;
+            margin: 0.1rem 0 0.5rem;
+        }
+        .streamgraph-main {
+            height: 480px;
+            min-height: 400px;
+        }
+        .streamgraph-detail {
+            height: 320px;
+            min-height: 300px;
+            border-top: 1px solid #e2e8f0;
+            padding-top: 0.6rem;
+        }
+        .streamgraph-detail-chart {
+            height: 260px;
+            min-height: 240px;
+        }
+        .detail-placeholder {
+            height: 260px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #94a3b8;
+            background: #f8fafc;
+            border: 1px dashed #cbd5e0;
+            border-radius: 8px;
+            font-size: 0.95rem;
+        }
+        .filter-group {
+            display: flex;
+            gap: 0.8rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        .filter-group select {
+            padding: 0.4rem 0.8rem;
+            background: #ffffff;
+            border: 1px solid #cbd5e0;
+            border-radius: 8px;
+            color: #1a202c;
+            font-size: 0.85rem;
+            outline: none;
+        }
+        .filter-group select:focus {
+            border-color: #3182ce;
+        }
+        .btn-analysis {
+            padding: 0.4rem 1.2rem;
+            background: #3182ce;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+            font-weight: 500;
+            transition: 0.3s;
+        }
+        .btn-analysis:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 15px rgba(49, 130, 206, 0.4);
+        }
+        .insight-box {
+            margin-top: 1rem;
+            padding: 1rem 1.2rem;
+            background: #f7fafc;
+            border-radius: 12px;
+            border-left: 4px solid #3182ce;
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: #1a202c;
+            min-height: 50px;
+        }
+        .insight-box .label {
+            color: #4a5568;
+            font-size: 0.8rem;
+            margin-right: 0.8rem;
+        }
+        .heatmap-wrapper {
+            width: 100%;
+        }
+        .chatbot-container {
+            position: fixed;
+            right: 1.5rem;
+            bottom: 1.5rem;
+            width: 340px;
+            background: #ffffff;
+            border-radius: 16px;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.12);
+            z-index: 1000;
+            display: flex;
+            flex-direction: column;
+            max-height: 500px;
+            transition: max-height 0.3s;
+        }
+        .chatbot-container.collapsed {
+            max-height: 60px;
+            overflow: hidden;
+        }
+        .chatbot-header {
+            padding: 0.8rem 1rem;
+            border-bottom: 1px solid #edf2f7;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            cursor: pointer;
+            background: #f7fafc;
+            border-radius: 16px 16px 0 0;
+        }
+        .chatbot-header .title {
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            color: #1a202c;
+        }
+        .chatbot-header .toggle-btn {
+            background: none;
+            border: none;
+            color: #4a5568;
+            font-size: 1.2rem;
+            cursor: pointer;
+        }
+        .chatbot-messages {
+            flex: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            max-height: 300px;
+            background: #ffffff;
+        }
+        .chat-message {
+            max-width: 90%;
+        }
+        .chat-message.bot {
+            align-self: flex-start;
+        }
+        .chat-message.user {
+            align-self: flex-end;
+        }
+        .chat-bubble {
+            padding: 0.6rem 1rem;
+            border-radius: 12px;
+            font-size: 0.85rem;
+            line-height: 1.5;
+        }
+        .chat-bubble.bot {
+            background: #edf2f7;
+            color: #1a202c;
+            border-radius: 12px 12px 12px 4px;
+        }
+        .chat-bubble.user {
+            background: #3182ce;
+            color: #ffffff;
+            border-radius: 12px 12px 4px 12px;
+        }
+        .preset-questions {
+            padding: 0.5rem 1rem;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            border-top: 1px solid #edf2f7;
+            background: #f7fafc;
+        }
+        .preset-btn {
+            padding: 0.3rem 0.7rem;
+            background: #edf2f7;
+            border: none;
+            border-radius: 12px;
+            color: #2d3748;
+            font-size: 0.75rem;
+            cursor: pointer;
+            transition: 0.3s;
+        }
+        .preset-btn:hover {
+            background: #d2dce8;
+            color: #1a202c;
+        }
+        .chatbot-input {
+            padding: 0.5rem 1rem;
+            border-top: 1px solid #edf2f7;
+            display: flex;
+            gap: 0.5rem;
+            background: #ffffff;
+        }
+        .chatbot-input input {
+            flex: 1;
+            padding: 0.5rem 0.8rem;
+            background: #f7fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 20px;
+            color: #1a202c;
+            outline: none;
+            font-size: 0.85rem;
+        }
+        .chatbot-input button {
+            padding: 0.5rem 1rem;
+            background: #3182ce;
+            border: none;
+            border-radius: 20px;
+            color: #fff;
+            cursor: pointer;
+        }
+
+        @media (max-width: 768px) {
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .chatbot-container {
+                width: 90%;
+                right: 5%;
+            }
+            .streamgraph-layout {
+                grid-template-rows: 380px 300px;
+            }
+            .streamgraph-main {
+                height: 380px;
+            }
+            .streamgraph-detail {
+                height: 300px;
+            }
+            .streamgraph-detail-chart,
+            .detail-placeholder {
+                height: 250px;
+            }
+        }
+
+        /* Desktop integrated dashboard: keep all six charts in one viewport. */
+        @media (min-width: 1180px) and (min-height: 720px) {
+            html, body { height: 100%; overflow: hidden; }
+            body { padding-bottom: 0; }
+            .nav-bar { height: 58px; padding: 0.55rem 1.25rem; position: relative; }
+            .nav-title { font-size: clamp(1rem, 1.25vw, 1.35rem); }
+            .container {
+                height: calc(100vh - 58px);
+                max-width: none;
+                padding: 10px 14px 12px;
+                display: grid;
+                grid-template-columns: repeat(3, minmax(0, 1fr));
+                grid-template-rows: 70px repeat(2, minmax(0, 1fr));
+                gap: 10px;
+                overflow: hidden;
+            }
+            .stats-grid {
+                grid-column: 1 / -1;
+                margin: 0;
+                gap: 10px;
+            }
+            .stat-card { padding: 0.45rem 1rem; border-radius: 12px; }
+            .stat-value { font-size: clamp(1.35rem, 1.8vw, 2rem); line-height: 1.15; }
+            .stat-label { margin-top: 0.1rem; font-size: 0.78rem; }
+            .chart-section {
+                min-width: 0;
+                min-height: 0;
+                margin: 0;
+                padding: 0.7rem;
+                border-radius: 12px;
+                display: flex;
+                flex-direction: column;
+                overflow: hidden;
+            }
+            .chart-header { flex: 0 0 auto; margin-bottom: 0.25rem; gap: 0.35rem; }
+            .chart-title { font-size: 0.98rem; }
+            .filter-group { gap: 0.3rem; }
+            .filter-group select { padding: 0.2rem 0.35rem; font-size: 0.72rem; max-width: 105px; }
+            .chart-container,
+            .chart-container.network,
+            .chart-container[style] {
+                flex: 1 1 auto;
+                width: 100%;
+                height: auto !important;
+                min-height: 0 !important;
+                overflow: hidden;
+            }
+            .streamgraph-layout {
+                flex: 1 1 auto;
+                min-height: 0;
+                margin: 0;
+                gap: 4px;
+                grid-template-rows: minmax(0, 1.6fr) minmax(70px, 0.8fr);
+                overflow: hidden;
+            }
+            .streamgraph-main,
+            .streamgraph-detail,
+            .streamgraph-detail-chart,
+            .detail-placeholder { height: auto; min-height: 0; }
+            .streamgraph-detail { padding-top: 0.2rem; }
+            .streamgraph-subtitle { font-size: 0.68rem; margin-bottom: 0.1rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+            .insight-box {
+                flex: 0 0 31px;
+                min-height: 0;
+                margin-top: 0.3rem;
+                padding: 0.35rem 0.55rem;
+                font-size: 0.72rem;
+                line-height: 1.35;
+                white-space: nowrap;
+                overflow-x: auto;
+                overflow-y: hidden;
+                border-radius: 7px;
+            }
+            .btn-analysis { flex: 0 0 auto; align-self: flex-start; margin-top: 0.25rem !important; padding: 0.22rem 0.7rem; font-size: 0.72rem; }
+            .chatbot-container { right: 0.8rem; bottom: 0.8rem; }
+        }
+
+        /* In-page chart enlargement and complete small-chart previews. */
+        .chart-expand-btn {
+            margin-left: auto;
+            padding: 0.28rem 0.65rem;
+            border: 1px solid #cbd5e0;
+            border-radius: 7px;
+            background: #fff;
+            color: #2b6cb0;
+            font-size: 0.75rem;
+            line-height: 1.2;
+            cursor: pointer;
+            white-space: nowrap;
+            transition: background .2s, border-color .2s, transform .2s;
+        }
+        .chart-expand-btn:hover { background: #ebf8ff; border-color: #3182ce; transform: translateY(-1px); }
+        .chart-section:not(.is-expanded) .chart-container {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-section:not(.is-expanded) .chart-container > .vega-embed,
+        .chart-section:not(.is-expanded) .chart-container > .vega-embed > div {
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .chart-section:not(.is-expanded) .vega-embed svg,
+        .chart-section:not(.is-expanded) .vega-embed canvas {
+            width: 100% !important;
+            height: 100% !important;
+            object-fit: contain;
+        }
+        /* The compact river preview only shows the upper big-theme streamgraph. */
+        .chart-section:not(.is-expanded) .streamgraph-layout {
+            display: block;
+            min-height: 0;
+        }
+        .chart-section:not(.is-expanded) .streamgraph-layout > .streamgraph-panel:first-child {
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+        }
+        .chart-section:not(.is-expanded) .streamgraph-main { flex: 1 1 auto; }
+        .chart-section:not(.is-expanded) .streamgraph-detail { display: none; }
+        /* Give dense overview charts a little more breathing room in compact mode. */
+        .chart-section:not(.is-expanded) #networkChart.js-plotly-plot,
+        .chart-section:not(.is-expanded) #networkChart > .js-plotly-plot {
+            transform: translateX(-10%) scale(.84);
+            transform-origin: center center;
+        }
+        .chart-section:not(.is-expanded) .heatmap-wrapper {
+            position: relative;
+            flex: 1 1 auto;
+            min-height: 0;
+        }
+        .chart-section:not(.is-expanded) #heatmapChart {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100% !important;
+        }
+        .chart-section:not(.is-expanded) #heatmapChart > .vega-embed {
+            position: absolute;
+            inset: 0;
+            transform: scale(.70);
+            transform-origin: center center;
+        }
+        /* The assistant starts collapsed: plus when closed, minus when open. */
+        .chatbot-header .toggle-btn { font-size: 0; }
+        .chatbot-header .toggle-btn::before { content: '\2212'; font-size: 1.2rem; }
+        .chatbot-container.collapsed .toggle-btn::before { content: '+'; }
+        body.chart-expanded::before {
+            content: '';
+            position: fixed;
+            inset: 0;
+            z-index: 1999;
+            background: rgba(15, 23, 42, .52);
+            backdrop-filter: blur(3px);
+        }
+        /* Vega appends tooltips to body; keep them above the enlargement mask. */
+        .vg-tooltip { z-index: 3100 !important; }
+        .chart-section.is-expanded .vega-embed,
+        .chart-section.is-expanded .vega-embed svg,
+        .chart-section.is-expanded .vega-embed canvas { pointer-events: auto !important; }
+        .chart-section.is-expanded {
+            position: fixed;
+            inset: 22px;
+            z-index: 2000;
+            width: auto;
+            height: auto;
+            max-height: calc(100vh - 44px);
+            margin: 0;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            overflow: auto;
+            border-radius: 16px;
+            box-shadow: 0 24px 70px rgba(15, 23, 42, .3);
+        }
+        .chart-section.is-expanded .chart-header { flex: 0 0 auto; margin-bottom: .7rem; }
+        .chart-section.is-expanded .chart-title { font-size: 1.15rem; }
+        .chart-section.is-expanded .chart-container {
+            flex: 1 0 auto;
+            height: min(64vh, 720px) !important;
+            min-height: 460px !important;
+            overflow: visible;
+        }
+        .chart-section.is-expanded .streamgraph-layout {
+            flex: 1 0 auto;
+            min-height: 720px;
+            grid-template-rows: 440px 260px;
+            overflow: visible;
+        }
+        .chart-section.is-expanded .streamgraph-main { height: 410px !important; min-height: 380px !important; }
+        .chart-section.is-expanded .streamgraph-detail-chart,
+        .chart-section.is-expanded .detail-placeholder { height: 225px; min-height: 200px; }
+        .chart-section.is-expanded .insight-box {
+            flex: 0 0 auto;
+            min-height: 50px;
+            white-space: normal;
+            overflow: visible;
+            font-size: .9rem;
+            line-height: 1.55;
+        }
+    </style>
+</head>
+<body>
+    <!-- 导航栏 -->
+    <div class="nav-bar">
+        <div class="nav-title">❤️ 热血心声：面向无偿献血的多模态舆情分析与决策支持系统</div>
+        <div class="nav-links">
+            <a href="#" class="active">公众反馈侧</a>
+            <a href="content_communication.html">传播内容侧</a>
+        </div>
+    </div>
+
+    <div class="container">
+        <!-- 指标卡片 -->
+        <div class="stats-grid" id="statsGrid">
+            <div class="stat-card"><div class="stat-value" id="totalComments">--</div><div class="stat-label">总评论数</div></div>
+            <div class="stat-card"><div class="stat-value" id="totalTopics">--</div><div class="stat-label">小主题数</div></div>
+            <div class="stat-card"><div class="stat-value" id="avgSentiment">--</div><div class="stat-label">平均情感得分</div></div>
+            <div class="stat-card"><div class="stat-value" id="positiveRatio">--</div><div class="stat-label">正面评论占比</div></div>
+        </div>
+
+        <!-- 网络图 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">🔗 主题共现网络图</div>
+            </div>
+            <div class="chart-container network" id="networkChart"></div>
+            <div class="insight-box" id="networkInsight"><span class="label">📊 智能解读：</span>点击节点可跳转到传播内容侧查看相关视频；悬停查看详情。</div>
+            <button class="btn-analysis" onclick="analyzeNetwork()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 平台情感对比图 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">📊 平台情感分布</div>
+                <div class="filter-group">
+                    <span style="color:#94a3b8;font-size:0.85rem;">大主题：</span>
+                    <select id="bigThemeSelect" onchange="updatePlatformChart()">
+                        <option value="all">全部</option>
+                    </select>
+                    <span style="color:#94a3b8;font-size:0.85rem;">小主题：</span>
+                    <select id="subThemeSelect" onchange="updatePlatformChart()">
+                        <option value="all">全部</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container" id="platformChart" style="height:420px;"></div>
+            <div class="insight-box" id="platformInsight"><span class="label">📊 智能解读：</span>点击B站柱子可跳转至传播内容侧查看相关视频。</div>
+            <button class="btn-analysis" onclick="analyzePlatform()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 箱型图（已优化） -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">📦 平台-主题箱型图</div>
+                <div class="filter-group">
+                    <span style="color:#94a3b8;font-size:0.85rem;">主题层级：</span>
+                    <select id="boxTopicLevelSelect" onchange="renderBoxplot()">
+                        <option value="big">5个大主题</option>
+                        <option value="sub">22个小主题</option>
+                    </select>
+                    <span style="color:#94a3b8;font-size:0.85rem;">分析指标：</span>
+                    <select id="boxMetricSelect" onchange="renderBoxplot()">
+                        <option value="sentiment">情感得分</option>
+                        <option value="count">出现频次</option>
+                    </select>
+                </div>
+            </div>
+            <div class="chart-container" id="boxplotChart" style="height:840px;min-height:840px;"></div>
+            <div class="insight-box" id="boxplotInsight"><span class="label">📦 智能解读：</span>箱型图用于比较不同平台中各主题的情感分布或总出现频次分布。</div>
+            <button class="btn-analysis" onclick="analyzeBoxplot()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 河流图 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">🌊 主题河流图 <span style="font-size:0.75rem;font-weight:400;color:#94a3b8;">（面积宽度 = 所选指标）</span></div>
+                <div class="filter-group">
+                    <span style="color:#94a3b8;font-size:0.85rem;">指标：</span>
+                    <select id="metricSelect" onchange="renderStreamgraph()">
+                        <option value="count">讨论频次</option>
+                        <option value="sentiment">平均情感得分</option>
+                    </select>
+                    <span style="color:#94a3b8;font-size:0.85rem;">时间：按年</span>
+                    <button class="btn-analysis" onclick="resetStreamgraph()" style="border-radius:8px;padding:0.38rem 0.9rem;">重置</button>
+                </div>
+            </div>
+            <div class="streamgraph-layout">
+                <div class="streamgraph-panel">
+                    <div class="streamgraph-subtitle">总河流作为浅灰背景，大主题河流为前景堆叠；点击任意大主题查看下方小主题详情。</div>
+                    <div class="chart-container streamgraph-main" id="streamgraphChart"></div>
+                </div>
+                <div class="streamgraph-panel streamgraph-detail">
+                    <div class="streamgraph-subtitle" id="streamgraphDetailTitle">下钻详情区</div>
+                    <div id="streamgraphDetailChart" class="detail-placeholder">点击上方大主题查看详情</div>
+                </div>
+            </div>
+            <div class="insight-box" id="streamgraphInsight"><span class="label">🌊 智能解读：</span>河流图展示各主题在年份上的指标变化。面积越宽代表指标值越高（频次或情感得分）。悬停查看具体数值，点击河流可跳转至传播内容侧。</div>
+            <button class="btn-analysis" onclick="analyzeStreamgraph()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 气泡图 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">💬 主题情感分布</div>
+            </div>
+            <div class="chart-container" id="bubbleChart" style="height:420px;"></div>
+            <div class="insight-box" id="bubbleInsight"><span class="label">💬 智能解读：</span>气泡大小代表评论数，颜色代表大主题，点击气泡跳转。</div>
+            <button class="btn-analysis" onclick="analyzeBubble()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+
+        <!-- 热力图 -->
+        <div class="chart-section">
+            <div class="chart-header">
+                <div class="chart-title">🔥 平台-主题热力图</div>
+            </div>
+            <div class="heatmap-wrapper">
+                <div class="chart-container" id="heatmapChart" style="height:400px;"></div>
+            </div>
+            <div class="insight-box" id="heatmapInsight"><span class="label">🔥 智能解读：</span>颜色深浅表示评论数量，单元格内数字为情感得分。</div>
+            <button class="btn-analysis" onclick="analyzeHeatmap()" style="margin-top:0.5rem;">帮我分析</button>
+        </div>
+    </div>
+
+    <!-- 智能对话框 -->
+    <div class="chatbot-container collapsed" id="chatbot">
+        <div class="chatbot-header" onclick="toggleChatbot()">
+            <span class="title">🤖 智能助手</span>
+            <span class="toggle-btn" id="chatToggle">−</span>
+        </div>
+        <div class="chatbot-messages" id="chatMessages">
+            <div class="chat-message bot">
+                <div class="chat-bubble bot">您好！我是数据分析助手，可为您提供整体舆情、平台差异、主题关系、风险预警等分析。点击下方预设问题快速获取结论。</div>
+            </div>
+        </div>
+        <div class="preset-questions">
+            <button class="preset-btn" onclick="sendPreset('整体舆情')">整体舆情</button>
+            <button class="preset-btn" onclick="sendPreset('平台差异')">平台差异</button>
+            <button class="preset-btn" onclick="sendPreset('主题关系')">主题关系</button>
+            <button class="preset-btn" onclick="sendPreset('风险预警')">风险预警</button>
+        </div>
+        <div class="chatbot-input">
+            <input type="text" id="chatInput" placeholder="输入问题..." onkeyup="if(event.key==='Enter') sendChatMessage()">
+            <button onclick="sendChatMessage()">发送</button>
+        </div>
+    </div>
+
+    <script>
+        // Dify API 配置（保留，但未使用）
+        const DIFY_API_URL = 'https://api.dify.ai/v1/chat-messages';
+        const DIFY_API_KEY = 'app-dY7jp8Dy4SK1SQBF5acixcIg';
+        let conversationId = '';
+
+        // -------------------- 全局数据 --------------------
+        let fullData = [];
+        let networkData = null;
+        let bigThemeMap = {};
+        let bigThemes = ['献血动机与心理认知', '献血流程与现场服务', '献血后健康与副作用', '血站管理与用血政策', '其他'];
+        let subThemesByBig = {};
+        let topicFreq = {};
+        let selectedStreamBigTheme = null;
+
+        const THEME_MAPPING = {
+            '社会责任': '献血动机与心理认知',
+            '献血动机': '献血动机与心理认知',
+            '献血光荣': '献血动机与心理认知',
+            '献血上瘾': '献血动机与心理认知',
+            '献血恐惧': '献血动机与心理认知',
+            '献血奖励': '献血动机与心理认知',
+            '献血条件': '献血流程与现场服务',
+            '献血体验': '献血流程与现场服务',
+            '医护服务': '献血流程与现场服务',
+            '信息咨询': '献血流程与现场服务',
+            '献血记录': '献血流程与现场服务',
+            '献血量与频率': '献血流程与现场服务',
+            '献血有益健康': '献血后健康与副作用',
+            '献血副作用': '献血后健康与副作用',
+            '血站信任': '血站管理与用血政策',
+            '报销问题': '血站管理与用血政策',
+            '用血收费': '血站管理与用血政策',
+            '血液管理': '血站管理与用血政策',
+            '政策讨论': '血站管理与用血政策',
+            '献血证作用': '血站管理与用血政策',
+            '稀有血型讨论': '血站管理与用血政策',
+            '其他': '其他'
+        };
+
+        const BIG_COLORS = {
+            '献血动机与心理认知': '#b7433f',
+            '献血流程与现场服务': '#d8844c',
+            '献血后健康与副作用': '#e3b65c',
+            '血站管理与用血政策': '#5b8fa8',
+            '其他': '#6f7d8c'
+        };
+        const BIG_COLOR_LIST = Object.values(BIG_COLORS);
+
+        // ===================== 加载数据 =====================
+        async function loadData() {
+            try {
+                const [fullResp, netResp] = await Promise.all([
+                    fetch('data/full_data.json'),
+                    fetch('data/network_data.json')
+                ]);
+                fullData = await fullResp.json();
+                networkData = await netResp.json();
+                console.log('数据加载完成，评论数:', fullData.length);
+                buildThemeMaps();
+                computeStats();
+                renderStats();
+                renderNetwork();
+                populateFilters();
+                renderPlatformChart();
+                renderBoxplot();
+                renderStreamgraph();
+                renderBubbleChart();
+                renderHeatmap();
+            } catch (e) {
+                console.error('加载数据失败:', e);
+                document.body.innerHTML = '<p style="color:red;padding:2rem;">数据加载失败，请确保 data/ 目录下的 JSON 文件存在。</p>';
+            }
+        }
+
+        function buildThemeMaps() {
+            networkData.nodes.forEach(n => {
+                const big = THEME_MAPPING[n.id] || '其他';
+                bigThemeMap[n.id] = big;
+                if (!subThemesByBig[big]) subThemesByBig[big] = [];
+                if (!subThemesByBig[big].includes(n.id)) subThemesByBig[big].push(n.id);
+                topicFreq[n.id] = n.freq;
+            });
+        }
+
+        function computeStats() {
+            let total = fullData.length;
+            let topics = new Set();
+            let sentimentSum = 0,
+                sentimentCount = 0;
+            let positive = 0;
+            fullData.forEach(item => {
+                if (item.小主题详情) {
+                    try {
+                        let details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            topics.add(d.主题);
+                            sentimentSum += d.情感得分;
+                            sentimentCount++;
+                        });
+                    } catch (e) {}
+                }
+                if (item.情感倾向 === '正向') positive++;
+            });
+            let avg = sentimentCount > 0 ? (sentimentSum / sentimentCount) : 0.5;
+            let posRatio = total > 0 ? (positive / total * 100) : 0;
+            window._stats = { total, topicsCount: topics.size, avgSentiment: avg, positiveRatio: posRatio };
+        }
+
+        function renderStats() {
+            const s = window._stats;
+            document.getElementById('totalComments').textContent = s.total.toLocaleString();
+            document.getElementById('totalTopics').textContent = s.topicsCount;
+            document.getElementById('avgSentiment').textContent = s.avgSentiment.toFixed(2);
+            document.getElementById('positiveRatio').textContent = s.positiveRatio.toFixed(1) + '%';
+        }
+
+        // -------------------- 网络图 (Plotly) --------------------
+        function renderNetwork() {
+            const nodes = networkData.nodes;
+            const edges = networkData.edges;
+            const maxWeight = Math.max(...edges.map(e => e.value || 1));
+            const adjacency = {};
+            nodes.forEach(n => adjacency[n.id] = new Set());
+            edges.forEach(e => {
+                adjacency[e.source].add(e.target);
+                adjacency[e.target].add(e.source);
+            });
+
+            const nodeColors = nodes.map(n => BIG_COLORS[bigThemeMap[n.id]] || '#cccccc');
+            const nodeSizes = nodes.map(n => 20 + n.freq / 100);
+            const nodeText = nodes.map(n => `${n.id}<br>频次: ${n.freq}<br>大主题: ${bigThemeMap[n.id]}`);
+
+            const edgeTraces = [];
+            edges.forEach((e) => {
+                const source = nodes.find(n => n.id === e.source);
+                const target = nodes.find(n => n.id === e.target);
+                if (!source || !target) return;
+                const weight = e.value || 1;
+                const width = 0.5 + 4.5 * (weight / maxWeight);
+                const trace = {
+                    x: [source.x, target.x],
+                    y: [source.y, target.y],
+                    mode: 'lines',
+                    line: { color: '#6366f1', width: width },
+                    opacity: 0.4,
+                    hoverinfo: 'none',
+                    showlegend: false,
+                    customdata: [
+                        [e.source, e.target]
+                    ],
+                };
+                edgeTraces.push(trace);
+            });
+
+            const nodeTrace = {
+                x: nodes.map(n => n.x),
+                y: nodes.map(n => n.y),
+                mode: 'markers+text',
+                text: nodes.map(n => n.id),
+                textposition: 'middle center',
+                textfont: { color: 'black', size: 9, family: 'Microsoft YaHei' },
+                hoverinfo: 'text',
+                hovertext: nodeText,
+                marker: {
+                    size: nodeSizes,
+                    color: nodeColors,
+                    line: { color: 'white', width: 1.5 },
+                    opacity: 1.0
+                },
+                showlegend: false,
+                customdata: nodes.map(n => n.id),
+            };
+
+            const allTraces = [...edgeTraces, nodeTrace];
+
+            const legendAnnotations = [];
+            const bigThemeList = Object.keys(BIG_COLORS);
+            bigThemeList.forEach((theme, idx) => {
+                const yPos = 1 - idx * 0.045;
+                const color = BIG_COLORS[theme];
+                legendAnnotations.push({
+                    x: 1.02,
+                    y: yPos,
+                    xref: 'paper',
+                    yref: 'paper',
+                    text: `<span style="color:${color};font-size:14px;">●</span> ${theme}`,
+                    showarrow: false,
+                    font: { color: 'black', size: 10, family: 'Microsoft YaHei' },
+                    align: 'left',
+                    xanchor: 'left',
+                    yanchor: 'middle'
+                });
+            });
+
+            const freqStartY = 1 - bigThemeList.length * 0.045 - 0.07;
+            legendAnnotations.push({
+                x: 1.02,
+                y: freqStartY,
+                xref: 'paper',
+                yref: 'paper',
+                text: '频次',
+                showarrow: false,
+                font: { color: 'black', size: 10, family: 'Microsoft YaHei' },
+                align: 'left',
+                xanchor: 'left',
+                yanchor: 'middle'
+            });
+
+            const freqValues = [0, 1000, 2000, 3000, 4000, 5000];
+            const diameters = freqValues.map(val => 20 + val / 100);
+            const gap = 0.001;
+            const circleYPositions = [];
+            freqValues.forEach((val, i) => {
+                const diam = diameters[i];
+                const radiusPaper = diam / 480;
+                if (i === 0) {
+                    circleYPositions.push(freqStartY - gap - radiusPaper);
+                } else {
+                    const prevBottom = circleYPositions[i - 1] - (diameters[i - 1] / 480);
+                    circleYPositions.push(prevBottom - gap - radiusPaper);
+                }
+            });
+
+            freqValues.forEach((val, i) => {
+                const diam = diameters[i];
+                const yPos = circleYPositions[i];
+                legendAnnotations.push({
+                    x: 1.02,
+                    y: yPos,
+                    xref: 'paper',
+                    yref: 'paper',
+                    text: `<span style="color:#555;font-size:${diam}px;">⬤</span> ${val.toLocaleString()}`,
+                    showarrow: false,
+                    font: { color: 'black', size: 9, family: 'Microsoft YaHei' },
+                    align: 'left',
+                    xanchor: 'left',
+                    yanchor: 'middle'
+                });
+            });
+
+            const layout = {
+                plot_bgcolor: 'rgba(0,0,0,0)',
+                paper_bgcolor: 'rgba(0,0,0,0)',
+                xaxis: { showgrid: false, zeroline: false, showticklabels: false },
+                yaxis: { showgrid: false, zeroline: false, showticklabels: false },
+                hovermode: 'closest',
+                margin: { l: 20, r: 160, t: 20, b: 40 },
+                height: 480,
+                showlegend: false,
+                annotations: legendAnnotations
+            };
+
+            Plotly.newPlot('networkChart', allTraces, layout, { responsive: true, displayModeBar: false });
+
+            const chartDiv = document.getElementById('networkChart');
+
+            function handleHover(eventData) {
+                if (!eventData.points || eventData.points.length === 0) { restoreOpacity(); return; }
+                const point = eventData.points[0];
+                const hoveredNodeId = point.customdata;
+                if (!hoveredNodeId) { restoreOpacity(); return; }
+                const highlightSet = new Set();
+                highlightSet.add(hoveredNodeId);
+                if (adjacency[hoveredNodeId]) {
+                    adjacency[hoveredNodeId].forEach(neighbor => highlightSet.add(neighbor));
+                }
+                const nodeOpacities = nodes.map(n => highlightSet.has(n.id) ? 1.0 : 0.15);
+                const edgeOpacities = edges.map((e) => {
+                    if (highlightSet.has(e.source) && highlightSet.has(e.target)) {
+                        return 1.0;
+                    } else {
+                        return 0.15;
+                    }
+                });
+                const nodeTraceIndex = allTraces.length - 1;
+                Plotly.restyle(chartDiv, { 'marker.opacity': [nodeOpacities] }, [nodeTraceIndex]);
+                const edgeIndices = edgeTraces.map((_, idx) => idx);
+                edgeIndices.forEach((traceIdx, i) => {
+                    Plotly.restyle(chartDiv, { 'opacity': edgeOpacities[i] }, [traceIdx]);
+                });
+            }
+
+            function restoreOpacity() {
+                const nodeTraceIndex = allTraces.length - 1;
+                Plotly.restyle(chartDiv, { 'marker.opacity': [1.0] }, [nodeTraceIndex]);
+                const edgeIndices = edgeTraces.map((_, idx) => idx);
+                edgeIndices.forEach((traceIdx) => {
+                    Plotly.restyle(chartDiv, { 'opacity': 0.4 }, [traceIdx]);
+                });
+            }
+
+            chartDiv.on('plotly_hover', handleHover);
+            chartDiv.on('plotly_unhover', function() { restoreOpacity(); });
+            chartDiv.on('plotly_click', function(data) {
+                if (data.points && data.points[0] && data.points[0].text) {
+                    const topic = data.points[0].text;
+                    const bigTheme = bigThemeMap[topic] || '其他';
+                    window.location.href = `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                }
+            });
+        }
+
+        function analyzeNetwork() {
+            const insight = document.getElementById('networkInsight');
+            
+            const nodes = networkData.nodes;
+            const edges = networkData.edges;
+            
+            const nodeFreq = {};
+            nodes.forEach(n => nodeFreq[n.id] = n.freq);
+            const sortedNodes = Object.entries(nodeFreq).sort((a, b) => b[1] - a[1]);
+            
+            const top5Nodes = sortedNodes.slice(0, 5);
+            const topNodesStr = top5Nodes.map(([name, freq]) => `“${name}”(${freq.toLocaleString()}次)`).join('、');
+            
+            const edgeStrength = [];
+            edges.forEach(e => {
+                if (e.value > 100) {
+                    edgeStrength.push({ 
+                        pair: `${e.source}—${e.target}`, 
+                        strength: e.value 
+                    });
+                }
+            });
+            edgeStrength.sort((a, b) => b.strength - a.strength);
+            const topEdges = edgeStrength.slice(0, 5);
+            const topEdgesStr = topEdges.map(e => `${e.pair}(${e.strength}次)`).join('、');
+            
+            const riskThemes = sortedNodes.filter(([name, freq]) => {
+                const big = THEME_MAPPING[name] || '其他';
+                return (big === '血站管理与用血政策' || big === '献血后健康与副作用') && freq > 1000;
+            });
+            const riskStr = riskThemes.map(([name, freq]) => `“${name}”(${freq.toLocaleString()}次)`).join('、');
+            
+            insight.innerHTML =
+                `<span class="label">📊 智能解读：</span><strong>网络结构概览：</strong>共包含 <strong>${nodes.length}</strong> 个主题节点与 <strong>${edges.length}</strong> 条共现关系边。<br><br>` +
+                `<strong>核心高频主题：</strong>讨论量最高的5个主题为 ${topNodesStr}。其中“社会责任”作为献血动机类话题的核心，讨论量领先，说明公众对献血的社会价值认同是主要驱动力。<br><br>` +
+                `<strong>强关联关系：</strong>最紧密的共现组合为 ${topEdgesStr}。这些强关联表明公众在讨论“社会责任”时，常常同时关注“血站信任”和“政策讨论”，形成了典型的“动机—信任—政策”讨论链条。<br><br>` +
+                `<strong>风险主题群组：</strong>${riskStr} 等主题构成了负面舆情的核心群组，相互关联紧密。特别是“血站信任”与“用血收费”“报销问题”的强关联，说明公众对血站管理的信任度是影响整体舆情的关键因素。<br><br>` +
+                `<strong>决策建议：</strong>建议重点关注“血站信任”相关话题的舆论走向，及时回应报销和用血收费等公众关切，可通过正面案例和政策解读来增强公众信任。点击节点可跳转到传播内容侧查看相关视频，悬停可查看详细数据。`;
+        }
+
+        // -------------------- 平台情感图 --------------------
+        function populateFilters() {
+            const bigSelect = document.getElementById('bigThemeSelect');
+            bigSelect.innerHTML = '<option value="all">全部</option>';
+            bigThemes.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                bigSelect.appendChild(opt);
+            });
+            bigSelect.onchange = function() {
+                updateSubFilter();
+                updatePlatformChart();
+            };
+            updateSubFilter();
+        }
+
+        function updateSubFilter() {
+            const big = document.getElementById('bigThemeSelect').value;
+            const subSelect = document.getElementById('subThemeSelect');
+            subSelect.innerHTML = '<option value="all">全部</option>';
+            if (big !== 'all' && subThemesByBig[big]) {
+                subThemesByBig[big].forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st;
+                    opt.textContent = st;
+                    subSelect.appendChild(opt);
+                });
+            } else if (big === 'all') {
+                const allSubs = Object.keys(bigThemeMap);
+                allSubs.forEach(st => {
+                    const opt = document.createElement('option');
+                    opt.value = st;
+                    opt.textContent = st;
+                    subSelect.appendChild(opt);
+                });
+            }
+        }
+
+        function getFilteredData() {
+            const big = document.getElementById('bigThemeSelect').value;
+            const sub = document.getElementById('subThemeSelect').value;
+            let filtered = fullData;
+            if (big !== 'all') {
+                const subThemes = subThemesByBig[big] || [];
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => subThemes.includes(d.主题));
+                    } catch (e) { return false; }
+                });
+            }
+            if (sub !== 'all') {
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => d.主题 === sub);
+                    } catch (e) { return false; }
+                });
+            }
+            return filtered;
+        }
+
+        function renderPlatformChart() {
+            const data = getFilteredData();
+            const platforms = ['B站', '微博', '抖音', '知乎'];
+            const sentiments = ['负向', '中性', '正向'];
+            const counts = {};
+            platforms.forEach(p => sentiments.forEach(s => counts[p + '_' + s] = 0));
+
+            data.forEach(item => {
+                const platform = item.平台 || '未知';
+                if (!platforms.includes(platform)) return;
+                if (!item.小主题详情) return;
+                try {
+                    const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                    details.forEach(d => {
+                        const score = d.情感得分 || 0.5;
+                        let sentiment = '中性';
+                        if (score >= 0.6) sentiment = '正向';
+                        else if (score < 0.4) sentiment = '负向';
+                        const key = platform + '_' + sentiment;
+                        if (counts[key] !== undefined) counts[key]++;
+                    });
+                } catch (e) {}
+            });
+
+            const values = [];
+            platforms.forEach(p => {
+                sentiments.forEach(s => {
+                    values.push({
+                        platform: p,
+                        sentiment: s,
+                        count: counts[p + '_' + s] || 0
+                    });
+                });
+            });
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 380,
+                "data": { "values": values },
+                "mark": { "type": "bar", "cornerRadiusEnd": 4 },
+                "encoding": {
+                    "x": { "field": "platform", "type": "nominal", "title": "平台" },
+                    "y": { "field": "count", "type": "quantitative", "title": "情感讨论频次" },
+                    "color": {
+                        "field": "sentiment",
+                        "type": "nominal",
+                        "scale": { "domain": ["负向", "中性", "正向"], "range": ["#b7433f", "#6f7d8c", "#B1CBA6"] }
+                    },
+                    "tooltip": [
+                        { "field": "platform", "title": "平台" },
+                        { "field": "sentiment", "title": "情感" },
+                        { "field": "count", "title": "频次" },
+                        { "calculation": "datum.count / sum(datum.count) * 100", "format": ".1f", "title": "占比(%)" }
+                    ]
+                },
+                "config": { "view": { "stroke": "transparent" } }
+            };
+
+            vegaEmbed('#platformChart', spec, { actions: false }).then(res => {
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum && item.datum.platform === 'B站') {
+                        // 获取当前选中的大主题和小主题
+                        const big = document.getElementById('bigThemeSelect').value;
+                        const sub = document.getElementById('subThemeSelect').value;
+                        let bigTheme = 'all'; // 默认全部
+            
+                        if (big !== 'all') {
+                            // 如果选了大主题，直接使用
+                                bigTheme = big;
+                        } else if (sub !== 'all') {
+                            // 如果只选了小主题，映射到对应大主题
+                            bigTheme = bigThemeMap[sub] || '其他';
+                        }
+                        // 如果 big === 'all' 且 sub === 'all'，bigTheme 保持 'all'
+            
+                        window.location.href = `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                    }
+                });
+            });
+        }
+
+        function updatePlatformChart() { renderPlatformChart(); }
+
+        function analyzePlatform() {
+            const big = document.getElementById('bigThemeSelect').value;
+            const sub = document.getElementById('subThemeSelect').value;
+            let filtered = fullData;
+            if (big !== 'all') {
+                const subThemes = subThemesByBig[big] || [];
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => subThemes.includes(d.主题));
+                    } catch (e) { return false; }
+                });
+            }
+            if (sub !== 'all') {
+                filtered = filtered.filter(item => {
+                    if (!item.小主题详情) return false;
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        return details.some(d => d.主题 === sub);
+                    } catch (e) { return false; }
+                });
+            }
+            const platforms = ['B站', '微博', '抖音', '知乎'];
+            const results = {};
+            platforms.forEach(p => {
+                const items = filtered.filter(item => (item.平台 || '') === p);
+                const total = items.length;
+                const sentiment = { '正向': 0, '中性': 0, '负向': 0 };
+                items.forEach(item => {
+                    const s = item.情感倾向 || '中性';
+                    if (sentiment[s] !== undefined) sentiment[s]++;
+                });
+                results[p] = { total, ...sentiment };
+            });
+            let maxPosPlatform = '',
+                maxPosRatio = 0;
+            let maxNegPlatform = '',
+                maxNegRatio = 0;
+            let maxTotalPlatform = '',
+                maxTotal = 0;
+            platforms.forEach(p => {
+                const r = results[p];
+                if (r.total === 0) return;
+                const posRatio = r.正向 / r.total * 100;
+                const negRatio = r.负向 / r.total * 100;
+                if (posRatio > maxPosRatio) { maxPosRatio = posRatio;
+                    maxPosPlatform = p; }
+                if (negRatio > maxNegRatio) { maxNegRatio = negRatio;
+                    maxNegPlatform = p; }
+                if (r.total > maxTotal) { maxTotal = r.total;
+                    maxTotalPlatform = p; }
+            });
+            const filterDesc = (big !== 'all' ? `“${big}”` : '全部主题') + (sub !== 'all' ? ` + “${sub}”` : '');
+            
+            let totalPos = 0, totalNeg = 0, totalAll = 0;
+            platforms.forEach(p => {
+                const r = results[p];
+                if (r.total === 0) return;
+                totalPos += r.正向;
+                totalNeg += r.负向;
+                totalAll += r.total;
+            });
+            
+            let insightHtml = `<span class="label">📊 智能解读：</span><strong>数据概览：</strong>在“${filterDesc}”的讨论中，共分析 <strong>${totalAll.toLocaleString()}</strong> 条评论，分布于 ${platforms.filter(p => results[p].total > 0).length} 个平台。<br><br>`;
+            
+            insightHtml += `<strong>平台讨论量分布：</strong>${maxTotalPlatform} 评论量最高（${maxTotal.toLocaleString()}条），占总量的 ${(maxTotal / totalAll * 100).toFixed(1)}%，是该主题讨论的主阵地。`;
+            
+            const otherPlatforms = platforms.filter(p => p !== maxTotalPlatform && results[p].total > 0);
+            if (otherPlatforms.length > 0) {
+                const otherStr = otherPlatforms.map(p => `${p}(${results[p].total.toLocaleString()}条)`).join('、');
+                insightHtml += ` ${otherStr} 为次要讨论平台。`;
+            }
+            insightHtml += `<br><br>`;
+            
+            insightHtml += `<strong>情感分布对比：</strong>`;
+            platforms.filter(p => results[p].total > 0).forEach(p => {
+                const r = results[p];
+                const pos = (r.正向 / r.total * 100).toFixed(1);
+                const neg = (r.负向 / r.total * 100).toFixed(1);
+                const neu = (r.中性 / r.total * 100).toFixed(1);
+                insightHtml += `${p} 正向 ${pos}%、负向 ${neg}%、中性 ${neu}%；`;
+            });
+            insightHtml += `<br><br>`;
+            
+            if (maxPosPlatform && results[maxPosPlatform].total > 0) {
+                const r = results[maxPosPlatform];
+                const ratio = (r.正向 / r.total * 100).toFixed(1);
+                insightHtml += `<strong>正面内容主阵地：</strong>${maxPosPlatform} 的正面评论占比最高（${ratio}%），可以将 ${maxPosPlatform} 作为该条件下的正面内容主阵地，加大正能量内容投放力度。`;
+            }
+            
+            if (maxNegPlatform && results[maxNegPlatform].total > 0) {
+                const r = results[maxNegPlatform];
+                const ratio = (r.负向 / r.total * 100).toFixed(1);
+                insightHtml += `<br><br><strong>负面舆情重点监测：</strong>${maxNegPlatform} 的负面评论占比相对较高（${ratio}%），建议加强该平台的舆情监测，针对负面关切点制作定向回应内容，及时化解公众疑虑。`;
+            }
+            
+            if (totalAll > 0) {
+                const overallPos = (totalPos / totalAll * 100).toFixed(1);
+                const overallNeg = (totalNeg / totalAll * 100).toFixed(1);
+                insightHtml += `<br><br><strong>总体舆论基调：</strong>整体正向 ${overallPos}%，负向 ${overallNeg}%。`;
+                if (parseFloat(overallPos) > 30) {
+                    insightHtml += `舆论基调总体正面，可继续保持正面引导策略。`;
+                } else if (parseFloat(overallNeg) > 10) {
+                    insightHtml += `负面情绪需重点关注，建议加强舆情监控和回应机制。`;
+                } else {
+                    insightHtml += `舆论情绪以中性为主，可通过互动内容提升正向引导。`;
+                }
+            }
+            
+            insightHtml += `<br><br><strong>💡 操作提示：</strong>点击 B 站柱子可跳转查看具体视频内容，深入分析传播内容与评论接收的匹配情况。`;
+            document.getElementById('platformInsight').innerHTML = insightHtml;
+        }
+
+        // -------------------- 箱型图（优化版） --------------------
+        function renderBoxplot() {
+            const level = document.getElementById('boxTopicLevelSelect')?.value || 'big';
+            const metric = document.getElementById('boxMetricSelect')?.value || 'sentiment';
+            const platforms = ['B站', '微博', '知乎', '抖音'];
+            console.info('boxplot renderer version: yearly-count-and-sentiment-zoom-v3');
+            const themeOrder = level === 'big'
+                ? bigThemes
+                : Object.keys(bigThemeMap).sort((a, b) => (topicFreq[b] || 0) - (topicFreq[a] || 0));
+            const values = [];
+            const boxplotEl = document.getElementById('boxplotChart');
+            const metricTitle = metric === 'sentiment' ? '情感得分' : '出现频次';
+            const levelDesc = level === 'big' ? '5个大主题' : '22个小主题';
+
+            const getYearKey = item => {
+                const raw = String(item.月份 || item.时间 || item.日期 || item.month || '').trim();
+                const matched = raw.match(/\d{4}/);
+                return matched ? matched[0] : '未知年份';
+            };
+
+            const quantile = (arr, p) => {
+                if (!arr.length) return 0;
+                const sorted = [...arr].sort((a, b) => a - b);
+                const pos = (sorted.length - 1) * p;
+                const base = Math.floor(pos);
+                const rest = pos - base;
+                return sorted[base + 1] !== undefined
+                    ? sorted[base] + rest * (sorted[base + 1] - sorted[base])
+                    : sorted[base];
+            };
+
+            const statsOf = arr => {
+                const sorted = [...arr].sort((a, b) => a - b);
+                return {
+                    min: sorted[0],
+                    q1: quantile(sorted, 0.25),
+                    median: quantile(sorted, 0.5),
+                    q3: quantile(sorted, 0.75),
+                    max: sorted[sorted.length - 1]
+                };
+            };
+
+            if (metric === 'sentiment') {
+                fullData.forEach(item => {
+                    const platform = item.平台 || '其他';
+                    if (!platforms.includes(platform)) return;
+                    parseThemeDetails(item).forEach(d => {
+                        const subTheme = d.主题;
+                        const bigTheme = bigThemeMap[subTheme] || '其他';
+                        // 原始得分 0~1，不作中心化
+                        values.push({
+                            platform,
+                            theme: level === 'big' ? bigTheme : subTheme,
+                            bigTheme,
+                            value: d.情感得分 ?? 0.5
+                        });
+                    });
+                });
+            } else {
+                // 频次模式：按平台 × 主题 × 年份生成分布。
+                const grouped = {};
+                fullData.forEach(item => {
+                    const platform = item.平台 || '其他';
+                    if (!platforms.includes(platform)) return;
+                    const period = getYearKey(item);
+                    const counted = new Set();
+                    parseThemeDetails(item).forEach(d => {
+                        const subTheme = d.主题;
+                        const bigTheme = bigThemeMap[subTheme] || '其他';
+                        const theme = level === 'big' ? bigTheme : subTheme;
+                        const key = `${platform}|${theme}|${period}`;
+                        if (counted.has(key)) return;
+                        counted.add(key);
+                        if (!grouped[key]) grouped[key] = { platform, theme, bigTheme: level === 'big' ? theme : bigTheme, period, value: 0 };
+                        grouped[key].value++;
+                    });
+                });
+                values.push(...Object.values(grouped));
+            }
+
+            if (values.length === 0) {
+                boxplotEl.innerHTML =
+                    '<p style="color:#94a3b8;text-align:center;padding:160px 0;">暂无箱型图数据</p>';
+                return;
+            }
+
+            const visibleThemes = themeOrder.filter(theme => values.some(d => d.theme === theme));
+            const leftPad = level === 'big' ? 168 : 188;
+            const rightPad = 28;
+            const topPad = 42;
+            const bottomPad = 46;
+            const cellGap = 18;
+            const rowHeight = metric === 'sentiment'
+                ? (level === 'big' ? 108 : 82)
+                : (level === 'big' ? 86 : 62);
+            const svgWidth = Math.max(boxplotEl.clientWidth || 1280, 1260);
+            const plotWidth = svgWidth - leftPad - rightPad;
+            const cellWidth = (plotWidth - cellGap * (platforms.length - 1)) / platforms.length;
+            const svgHeight = topPad + bottomPad + rowHeight * visibleThemes.length;
+
+            boxplotEl.style.height = `${svgHeight + 18}px`;
+            boxplotEl.style.minHeight = `${svgHeight + 18}px`;
+            boxplotEl.innerHTML = '';
+
+            const grouped = {};
+            values.forEach(d => {
+                const key = `${d.platform}|${d.theme}`;
+                if (!grouped[key]) grouped[key] = [];
+                grouped[key].push(d.value);
+            });
+
+            const allStats = [];
+            Object.entries(grouped).forEach(([key, arr]) => {
+                if (arr.length) allStats.push({ key, ...statsOf(arr) });
+            });
+
+            const paddedBounds = {};
+            allStats.forEach(st => {
+                const baseMin = metric === 'sentiment' ? st.q1 : st.min;
+                const baseMax = metric === 'sentiment' ? st.q3 : st.max;
+                const rawSpan = Math.max(baseMax - baseMin, metric === 'sentiment' ? 0.04 : 1);
+                const lowerPad = metric === 'sentiment'
+                    ? Math.max(0.04, rawSpan * 0.6)
+                    : (st.min > 0 ? Math.max(1, Math.min(rawSpan * 0.18, st.min * 0.5)) : 0);
+                const upperPad = metric === 'sentiment'
+                    ? Math.max(0.04, rawSpan * 0.6)
+                    : (st.max > 0 ? Math.max(1, Math.min(rawSpan * 0.6, st.max * 0.5)) : 1);
+                const lower = metric === 'sentiment'
+                    ? Math.max(0, baseMin - lowerPad)
+                    : Math.max(0, Math.floor(st.min - lowerPad));
+                const upper = metric === 'sentiment'
+                    ? Math.min(1, baseMax + upperPad)
+                    : Math.ceil(st.max + upperPad);
+                paddedBounds[st.key] = { lower, upper, span: Math.max(upper - lower, metric === 'sentiment' ? 0.16 : 1) };
+            });
+
+            const maxBoundSpan = Math.max(...Object.values(paddedBounds).map(b => b.span), metric === 'sentiment' ? 0.16 : 1);
+            const fixedSpan = metric === 'sentiment' ? 1 : Math.max(4, Math.ceil(maxBoundSpan));
+            const fmt = v => metric === 'sentiment'
+                ? Number(v).toFixed(2)
+                : (Number.isInteger(v) ? String(v) : Number(v).toFixed(1));
+            const colorOf = theme => BIG_COLORS[level === 'big' ? theme : (bigThemeMap[theme] || '其他')] || '#6f7d8c';
+            const esc = s => String(s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+            const domainFor = (key, st) => {
+                const preferred = paddedBounds[key] || { lower: st.min, upper: st.max };
+                if (metric === 'sentiment') {
+                    return { domainMin: 0, domainMax: 1 };
+                }
+                let domainMin = Math.max(0, preferred.lower);
+                let domainMax = domainMin + fixedSpan;
+                if (domainMax < preferred.upper) {
+                    domainMin = Math.max(0, preferred.upper - fixedSpan);
+                    domainMax = domainMin + fixedSpan;
+                }
+                if (domainMin > preferred.lower) {
+                    domainMin = Math.max(0, preferred.lower);
+                    domainMax = domainMin + fixedSpan;
+                }
+                return { domainMin, domainMax };
+            };
+
+            let svg = `<svg width="${svgWidth}" height="${svgHeight}" viewBox="0 0 ${svgWidth} ${svgHeight}" xmlns="http://www.w3.org/2000/svg" style="width:100%;height:${svgHeight}px;display:block;font-family:'Microsoft YaHei','Segoe UI',sans-serif;">`;
+            svg += `<rect x="0" y="0" width="${svgWidth}" height="${svgHeight}" fill="transparent"/>`;
+
+            platforms.forEach((platform, i) => {
+                const x = leftPad + i * (cellWidth + cellGap);
+                svg += `<text x="${x + cellWidth / 2}" y="22" text-anchor="middle" font-size="14" font-weight="700" fill="#1a1a2e">${platform}</text>`;
+                svg += `<line x1="${x - cellGap / 2}" y1="32" x2="${x - cellGap / 2}" y2="${svgHeight - bottomPad + 12}" stroke="#cbd5e0" stroke-dasharray="4 4"/>`;
+            });
+
+            visibleThemes.forEach((theme, rowIndex) => {
+                const rowTop = topPad + rowIndex * rowHeight;
+                const centerY = rowTop + rowHeight * 0.44;
+                const label = theme.length > 10 ? `${theme.slice(0, 10)}...` : theme;
+                svg += `<line x1="${leftPad - 10}" y1="${rowTop + rowHeight - 12}" x2="${svgWidth - rightPad}" y2="${rowTop + rowHeight - 12}" stroke="#e2e8f0"/>`;
+                svg += `<text x="${leftPad - 18}" y="${centerY + 5}" text-anchor="end" font-size="${level === 'big' ? 13 : 11}" fill="#1a1a2e"><title>${esc(theme)}</title>${esc(label)}</text>`;
+
+                platforms.forEach((platform, colIndex) => {
+                    const cellX = leftPad + colIndex * (cellWidth + cellGap);
+                    const axisY = centerY + 28;
+                    const key = `${platform}|${theme}`;
+                    const arr = grouped[key] || [];
+                    if (!arr.length) {
+                        svg += `<text x="${cellX + cellWidth / 2}" y="${centerY + 4}" text-anchor="middle" font-size="11" fill="#94a3b8">无数据</text>`;
+                        return;
+                    }
+
+                    const st = statsOf(arr);
+                    const { domainMin, domainMax } = domainFor(key, st);
+                    const xScale = value => {
+                        const ratio = (value - domainMin) / Math.max(domainMax - domainMin, 0.0001);
+                        return cellX + Math.max(0, Math.min(1, ratio)) * cellWidth;
+                    };
+                    const minX = xScale(st.min);
+                    const q1X = xScale(st.q1);
+                    const medX = xScale(st.median);
+                    const q3X = xScale(st.q3);
+                    const maxX = xScale(st.max);
+                    const fill = colorOf(theme);
+                    const boxH = metric === 'sentiment'
+                        ? (level === 'big' ? 22 : 16)
+                        : (level === 'big' ? 24 : 18);
+                    const safeQ1 = Math.min(q1X, q3X);
+                    const safeBoxW = Math.max(Math.abs(q3X - q1X), 4);
+
+                    svg += `<g class="boxplot-cell" data-platform="${platform}" data-theme="${theme}" style="cursor:pointer;">`;
+                    svg += `<line x1="${cellX}" y1="${axisY}" x2="${cellX + cellWidth}" y2="${axisY}" stroke="#cbd5e0"/>`;
+                    svg += `<line x1="${cellX}" y1="${axisY - 4}" x2="${cellX}" y2="${axisY + 4}" stroke="#94a3b8"/>`;
+                    svg += `<line x1="${cellX + cellWidth}" y1="${axisY - 4}" x2="${cellX + cellWidth}" y2="${axisY + 4}" stroke="#94a3b8"/>`;
+                    svg += `<text x="${cellX}" y="${axisY + 17}" text-anchor="start" font-size="9" fill="#64748b">${fmt(domainMin)}</text>`;
+                    svg += `<text x="${cellX + cellWidth}" y="${axisY + 17}" text-anchor="end" font-size="9" fill="#64748b">${fmt(domainMax)}</text>`;
+                    svg += `<line x1="${minX}" y1="${centerY}" x2="${maxX}" y2="${centerY}" stroke="#64748b" stroke-width="1.4"/>`;
+                    svg += `<line x1="${minX}" y1="${centerY - boxH / 3}" x2="${minX}" y2="${centerY + boxH / 3}" stroke="#64748b" stroke-width="1.4"/>`;
+                    svg += `<line x1="${maxX}" y1="${centerY - boxH / 3}" x2="${maxX}" y2="${centerY + boxH / 3}" stroke="#64748b" stroke-width="1.4"/>`;
+                    svg += `<rect x="${safeQ1}" y="${centerY - boxH / 2}" width="${safeBoxW}" height="${boxH}" rx="3" fill="${fill}" fill-opacity="0.68" stroke="#334155" stroke-width="1"/>`;
+                    svg += `<line x1="${medX}" y1="${centerY - boxH / 2 - 2}" x2="${medX}" y2="${centerY + boxH / 2 + 2}" stroke="#111827" stroke-width="2"/>`;
+                    svg += `<title>${esc(platform)} · ${esc(theme)}\n${metric === 'count' ? '年份数' : '样本数'}：${arr.length}\n范围：${fmt(st.min)} - ${fmt(st.max)}\nQ1：${fmt(st.q1)}，中位数：${fmt(st.median)}，Q3：${fmt(st.q3)}\n横轴范围：${fmt(domainMin)} - ${fmt(domainMax)}</title>`;
+                    svg += `</g>`;
+                });
+            });
+
+            svg += `<text x="${leftPad + plotWidth / 2}" y="${svgHeight - 8}" text-anchor="middle" font-size="12" fill="#1a1a2e">${metricTitle}</text>`;
+            svg += `</svg>`;
+            boxplotEl.innerHTML = svg;
+            // 添加点击事件委托
+            boxplotEl.querySelectorAll('.boxplot-cell').forEach(cell => {
+                cell.addEventListener('click', function(e) {
+                    const platform = this.dataset.platform;
+                    const theme = this.dataset.theme;
+                    if (platform === 'B站') {
+                        // 获取当前选中的主题层级
+                        const level = document.getElementById('boxTopicLevelSelect').value;
+                        const bigTheme = level === 'big' ? theme : (bigThemeMap[theme] || '其他');
+                        window.location.href = `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                    }
+                });
+            });
+
+            const modeNote = metric === 'sentiment'
+                ? '情感得分箱线图横坐标固定为 0-1.0，并加大主题行距，减少箱体拥挤。'
+                : '频次箱线图按年份聚合为年频次分布，先依据所有箱体上下限确定统一跨度，再让每个箱体从贴近自身下限的区间开始显示。';
+            document.getElementById('boxplotInsight').innerHTML =
+                `<span class="label">📦 智能解读：</span>当前按 <strong>${levelDesc}</strong> 比较四个平台的 <strong>${metricTitle}</strong> 分布。${modeNote}`;
+        }
+
+        // 新增：箱线图“帮我分析”功能
+        function analyzeBoxplot() {
+            const level = document.getElementById('boxTopicLevelSelect').value;
+            const metric = document.getElementById('boxMetricSelect').value;
+            const levelDesc = level === 'big' ? '大主题' : '小主题';
+            const metricDesc = metric === 'sentiment' ? '情感得分' : '总出现频次';
+
+            // 从当前渲染的数据中提取一些统计信息（重新计算）
+            const platforms = ['B站', '微博', '知乎', '抖音'];
+            let summary = {};
+            platforms.forEach(p => summary[p] = { values: [] });
+
+            if (metric === 'sentiment') {
+                fullData.forEach(item => {
+                    const platform = item.平台 || '其他';
+                    if (!platforms.includes(platform)) return;
+                    parseThemeDetails(item).forEach(d => {
+                        const subTheme = d.主题;
+                        const bigTheme = bigThemeMap[subTheme] || '其他';
+                        const theme = level === 'big' ? bigTheme : subTheme;
+                        summary[platform].values.push(d.情感得分 ?? 0.5);
+                    });
+                });
+            } else {
+                const grouped = {};
+                fullData.forEach(item => {
+                    const platform = item.平台 || '其他';
+                    if (!platforms.includes(platform)) return;
+                    const counted = new Set();
+                    parseThemeDetails(item).forEach(d => {
+                        const subTheme = d.主题;
+                        const bigTheme = bigThemeMap[subTheme] || '其他';
+                        const theme = level === 'big' ? bigTheme : subTheme;
+                        const key = `${platform}|${theme}`;
+                        if (counted.has(key)) return;
+                        counted.add(key);
+                        if (!grouped[key]) grouped[key] = { platform, value: 0 };
+                        grouped[key].value++;
+                    });
+                });
+                Object.values(grouped).forEach(g => {
+                    if (platforms.includes(g.platform)) summary[g.platform].values.push(g.value);
+                });
+            }
+
+            let insight = `<span class="label">📦 智能分析：</span><strong>分析维度：</strong>在 <strong>${levelDesc}</strong> 层面，比较四个平台的 <strong>${metricDesc}</strong> 分布特征。<br><br>`;
+            let platformStats = {};
+            platforms.forEach(p => {
+                const vals = summary[p].values;
+                if (vals.length === 0) {
+                    platformStats[p] = { count: 0, median: null, min: null, max: null, q1: null, q3: null, mean: null };
+                    return;
+                }
+                const sorted = vals.slice().sort((a, b) => a - b);
+                const median = sorted.length % 2 === 0 ? (sorted[sorted.length/2 - 1] + sorted[sorted.length/2]) / 2 : sorted[Math.floor(sorted.length/2)];
+                const q1 = sorted.length % 4 === 0 ? (sorted[sorted.length/4 - 1] + sorted[sorted.length/4]) / 2 : sorted[Math.floor(sorted.length/4)];
+                const q3 = sorted.length % 4 === 0 ? (sorted[sorted.length*3/4 - 1] + sorted[sorted.length*3/4]) / 2 : sorted[Math.floor(sorted.length*3/4)];
+                platformStats[p] = {
+                    count: vals.length,
+                    median: median,
+                    min: sorted[0],
+                    max: sorted[sorted.length-1],
+                    q1: q1,
+                    q3: q3,
+                    mean: vals.reduce((s,v) => s+v, 0) / vals.length,
+                    iqr: q3 - q1
+                };
+            });
+
+            let valid = platforms.filter(p => platformStats[p].count > 0);
+            if (valid.length === 0) {
+                insight += '当前筛选条件下暂无数据可供分析。';
+            } else {
+                let maxMed = -Infinity, maxP = '', minMed = Infinity, minP = '';
+                let maxRange = -Infinity, rangeP = '', maxIqr = -Infinity, iqrP = '';
+                valid.forEach(p => {
+                    const med = platformStats[p].median;
+                    if (med > maxMed) { maxMed = med; maxP = p; }
+                    if (med < minMed) { minMed = med; minP = p; }
+                    const range = platformStats[p].max - platformStats[p].min;
+                    if (range > maxRange) { maxRange = range; rangeP = p; }
+                    if (platformStats[p].iqr > maxIqr) { maxIqr = platformStats[p].iqr; iqrP = p; }
+                });
+                
+                if (metric === 'sentiment') {
+                    insight += `<strong>情感得分分布：</strong>中位数最高的平台为 <strong>${maxP}</strong>（${maxMed.toFixed(2)}），中位数最低的为 <strong>${minP}</strong>（${minMed.toFixed(2)}）。`;
+                    if (maxMed - minMed > 0.15) {
+                        insight += ` 平台间情感差异较大，${maxP} 的舆论情绪明显更正面，而 ${minP} 的负面倾向需要重点关注。`;
+                    } else {
+                        insight += ` 各平台情感中位数较为接近，舆论基调相对统一。`;
+                    }
+                    
+                    const lowSentimentPlatforms = valid.filter(p => platformStats[p].median < 0.4);
+                    if (lowSentimentPlatforms.length > 0) {
+                        insight += `<br><br><strong>低情感平台警示：</strong>${lowSentimentPlatforms.join('、')} 的情感中位数低于0.4，属于负面倾向较明显的平台，建议加强舆情监控。`;
+                    }
+                    
+                    const highSentimentPlatforms = valid.filter(p => platformStats[p].median > 0.6);
+                    if (highSentimentPlatforms.length > 0) {
+                        insight += `<br><br><strong>高情感平台亮点：</strong>${highSentimentPlatforms.join('、')} 的情感中位数高于0.6，舆论情绪积极正面，可作为正面内容投放的重点平台。`;
+                    }
+                } else {
+                    insight += `<strong>讨论频次分布：</strong>主题出现频次中位数最高的平台为 <strong>${maxP}</strong>（${maxMed.toFixed(0)}次），最低的为 <strong>${minP}</strong>（${minMed.toFixed(0)}次）。`;
+                    if (maxMed / minMed > 2) {
+                        insight += ` ${maxP} 的讨论活跃度远高于 ${minP}，建议将内容投放重心向 ${maxP} 倾斜。`;
+                    } else {
+                        insight += ` 各平台讨论频次差异不大，可均衡投放。`;
+                    }
+                }
+                
+                insight += `<br><br><strong>数据分布特征：</strong>${rangeP} 的数据范围最大（${maxRange.toFixed(metric === 'sentiment' ? 2 : 0)}），说明该平台的${metricDesc}波动幅度较大；${iqrP} 的四分位距最大（${maxIqr.toFixed(metric === 'sentiment' ? 2 : 0)}），表明该平台的中间50%数据分布较为分散。`;
+                
+                insight += `<br><br><strong>总体概况：</strong>共分析 ${valid.reduce((s,p) => s + platformStats[p].count, 0).toLocaleString()} 个数据点，覆盖 ${valid.length} 个平台。`;
+                
+                insight += `<br><br><strong>💡 操作提示：</strong>点击 B 站的箱型图可跳转至传播内容侧，查看具体视频及其评论详情。`;
+            }
+            document.getElementById('boxplotInsight').innerHTML = insight;
+        }
+
+        // -------------------- 河流图 --------------------
+        function getStreamYear(item) {
+            const raw = item.月份 || item.日期 || '';
+            const match = String(raw).match(/\b(\d{4})\b/);
+            return match ? match[1] : '';
+        }
+
+        function parseThemeDetails(item) {
+            if (!item.小主题详情) return [];
+            try {
+                const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                return Array.isArray(details) ? details.filter(d => d && d.主题) : [];
+            } catch (e) {
+                return [];
+            }
+        }
+
+        function aggregateStreamData(level, selectedBigTheme = null) {
+            const agg = {};
+            const years = new Set();
+            const themes = new Set();
+
+            fullData.forEach(item => {
+                const year = getStreamYear(item);
+                if (!year) return;
+
+                const details = parseThemeDetails(item);
+                if (details.length === 0) return;
+                years.add(year);
+
+                if (level === 'all') {
+                    const key = `${year}|总体评价`;
+                    if (!agg[key]) agg[key] = { year, theme: '总体评价', bigTheme: '总体评价', count: 0, sumSent: 0, num: 0 };
+                    agg[key].count++;
+                    agg[key].sumSent += details.reduce((sum, d) => sum + (d.情感得分 || 0.5), 0) / details.length;
+                    agg[key].num++;
+                    themes.add('总体评价');
+                    return;
+                }
+
+                const counted = new Set();
+                details.forEach(d => {
+                    const subTheme = d.主题;
+                    const bigTheme = bigThemeMap[subTheme] || '其他';
+                    if (selectedBigTheme && bigTheme !== selectedBigTheme) return;
+
+                    const theme = level === 'big' ? bigTheme : subTheme;
+                    const key = `${year}|${theme}`;
+                    if (!agg[key]) agg[key] = { year, theme, bigTheme, count: 0, sumSent: 0, num: 0 };
+                    if (!counted.has(key)) {
+                        agg[key].count++;
+                        counted.add(key);
+                    }
+                    agg[key].sumSent += (d.情感得分 || 0.5);
+                    agg[key].num++;
+                    themes.add(theme);
+                });
+            });
+
+            const sortedYears = Array.from(years).sort();
+            const sortedThemes = level === 'big'
+                ? bigThemes.filter(t => themes.has(t))
+                : Array.from(themes).sort((a, b) => (topicFreq[b] || 0) - (topicFreq[a] || 0));
+            const values = [];
+            sortedYears.forEach(year => {
+                sortedThemes.forEach(theme => {
+                    const found = agg[`${year}|${theme}`];
+                    const avgSent = found && found.num > 0 ? found.sumSent / found.num : 0.5;
+                    values.push({
+                        year,
+                        theme,
+                        bigTheme: found ? found.bigTheme : (level === 'sub' ? (bigThemeMap[theme] || selectedBigTheme || '其他') : theme),
+                        count: found ? found.count : 0,
+                        avgSentiment: avgSent
+                    });
+                });
+            });
+
+            return { values, years: sortedYears, themes: sortedThemes };
+        }
+
+        function getStreamAxis(metric) {
+            if (metric === 'count') {
+                return { yField: 'count', yTitle: null, metricName: '讨论频次' };
+            } else {
+                return { yField: 'avgSentiment', yTitle: null, metricName: '平均情感得分' };
+            }
+        }
+
+        function renderEmptyStreamState(message) {
+            vegaEmbed('#streamgraphChart', {
+                data: { values: [] },
+                mark: { type: 'area' },
+                config: { view: { stroke: 'transparent' } }
+            }, { actions: false });
+            document.getElementById('streamgraphDetailChart').className = 'detail-placeholder';
+            document.getElementById('streamgraphDetailChart').innerHTML = '点击上方大主题查看详情';
+            document.getElementById('streamgraphInsight').innerHTML = `<span class="label">🌊 智能解读：</span>${message}`;
+        }
+
+        function renderStreamgraph() {
+            const metric = document.getElementById('metricSelect').value;
+            const { yField, yTitle, metricName } = getStreamAxis(metric);
+            const allData = aggregateStreamData('all');
+            const bigData = aggregateStreamData('big');
+
+            if (bigData.values.length === 0 || bigData.years.length < 2) {
+                renderEmptyStreamState('数据点不足（至少需要2个年份），无法绘制河流图。');
+                return;
+            }
+
+            const yScale = { "nice": true };
+            const yAxis = null;
+            const widthHint = metric === 'count' ? '宽度表示频次' : '宽度表示情感得分，越宽越正向';
+
+            const selectedOpacity = selectedStreamBigTheme ? 0.9 : 0.78;
+            const dimOpacity = 0.26;
+            const opacityEncoding = selectedStreamBigTheme
+                ? {
+                    "condition": { "test": `datum.theme === '${selectedStreamBigTheme.replace(/'/g, "\\'")}'`, "value": selectedOpacity },
+                    "value": dimOpacity
+                }
+                : { "value": selectedOpacity };
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "description": "主题河流图主视图：总河流背景 + 大主题堆叠前景",
+                "width": "container",
+                "height": 460,
+                "layer": [
+                    {
+                        "data": { "values": allData.values },
+                        "mark": {
+                            "type": "area",
+                            "interpolate": "monotone",
+                            "color": "#9ca3af",
+                            "opacity": 0.24,
+                            "line": { "color": "#64748b", "strokeWidth": 1.4 }
+                        },
+                        "encoding": {
+                            "x": { "field": "year", "type": "ordinal", "title": null },
+                            "y": {
+                                "field": yField,
+                                "type": "quantitative",
+                                "title": yTitle,
+                                "scale": yScale,
+                                "axis": yAxis
+                            },
+                            "tooltip": [
+                                { "field": "year", "type": "ordinal", "title": "年份" },
+                                { "field": "theme", "type": "nominal", "title": "范围" },
+                                { "field": "count", "type": "quantitative", "title": "讨论频次" },
+                                { "field": "avgSentiment", "type": "quantitative", "title": "平均情感得分", "format": ".2f" }
+                            ]
+                        }
+                    },
+                    {
+                        "data": { "values": bigData.values },
+                        "mark": {
+                            "type": "area",
+                            "interpolate": "monotone",
+                            "opacity": 0.82,
+                            "stroke": "#1f2937",
+                            "strokeWidth": 0.8
+                        },
+                        "encoding": {
+                            "x": {
+                                "field": "year",
+                                "type": "ordinal",
+                                "title": null,
+                                "axis": { "labelAngle": 0, "domain": false, "grid": false, "labelColor": "#1a1a2e" }
+                            },
+                            "y": {
+                                "field": yField,
+                                "type": "quantitative",
+                                "stack": "center",
+                                "scale": yScale,
+                                "axis": yAxis
+                            },
+                            "color": {
+                                "field": "theme",
+                                "type": "nominal",
+                                "title": "大主题",
+                                "scale": { "domain": bigThemes, "range": BIG_COLOR_LIST },
+                                "legend": { "orient": "right", "labelFontSize": 10, "titleFontSize": 11, "symbolSize": 70 }
+                            },
+                            "opacity": opacityEncoding,
+                            "tooltip": [
+                                { "field": "year", "type": "ordinal", "title": "年份" },
+                                { "field": "theme", "type": "nominal", "title": "大主题" },
+                                { "field": "count", "type": "quantitative", "title": "讨论频次" },
+                                { "field": "avgSentiment", "type": "quantitative", "title": "平均情感得分", "format": ".2f" }
+                            ]
+                        }
+                    },
+                    {
+                        "data": { "values": [{ "label": widthHint }] },
+                        "mark": {
+                            "type": "text",
+                            "align": "left",
+                            "baseline": "top",
+                            "dx": 8,
+                            "dy": 8,
+                            "font": "Microsoft YaHei",
+                            "fontSize": 12,
+                            "fontWeight": 600,
+                            "color": "#334155"
+                        },
+                        "encoding": {
+                            "x": { "value": 0 },
+                            "y": { "value": 0 },
+                            "text": { "field": "label" }
+                        }
+                    }
+                ],
+                "config": {
+                    "view": { "stroke": "transparent" },
+                    "axis": { "labelFont": "Microsoft YaHei", "titleFont": "Microsoft YaHei", "grid": false },
+                    "legend": { "labelFont": "Microsoft YaHei", "titleFont": "Microsoft YaHei" }
+                }
+            };
+
+            vegaEmbed('#streamgraphChart', spec, { actions: false }).then(res => {
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum && item.datum.theme && item.datum.theme !== '总体评价') {
+                        selectedStreamBigTheme = selectedStreamBigTheme === item.datum.theme ? null : item.datum.theme;
+                        renderStreamgraph();
+                    }
+                });
+            });
+
+            if (selectedStreamBigTheme) {
+                renderStreamDetail(selectedStreamBigTheme);
+            } else {
+                document.getElementById('streamgraphDetailTitle').textContent = '下钻详情区';
+                document.getElementById('streamgraphDetailChart').className = 'detail-placeholder';
+                document.getElementById('streamgraphDetailChart').innerHTML = '点击上方大主题查看详情';
+            }
+
+            const totalCount = allData.values.reduce((sum, d) => sum + d.count, 0);
+            const topTheme = bigData.themes.map(t => {
+                const sum = bigData.values.filter(d => d.theme === t).reduce((s, d) => s + d.count, 0);
+                return { theme: t, sum };
+            }).sort((a, b) => b.sum - a.sum)[0];
+
+            document.getElementById('streamgraphInsight').innerHTML =
+                `<span class="label">🌊 智能解读：</span>主视图展示总体评价的浅灰背景趋势与 ${bigData.themes.length} 条大主题河流，当前指标为 <strong>${metricName}</strong>。` +
+                (metric === 'count' ? '频次模式隐藏纵轴，河流宽度代表讨论量大小。' : '情感模式隐藏纵轴，河流宽度代表平均情感得分，越宽表示越正向。') +
+                (topTheme ? ` 讨论量最高的大主题是 <strong>${topTheme.theme}</strong>（${topTheme.sum.toLocaleString()} 次）。` : '') +
+                (selectedStreamBigTheme ? ` 下方正在查看 <strong>${selectedStreamBigTheme}</strong> 的小主题详情。` : ' 点击任意大主题可在下方查看小主题详情。');
+        }
+
+        function renderStreamDetail(bigTheme) {
+            const metric = document.getElementById('metricSelect').value;
+            const { yField, yTitle } = getStreamAxis(metric);
+            const detail = aggregateStreamData('sub', bigTheme);
+            const container = document.getElementById('streamgraphDetailChart');
+            container.className = 'chart-container streamgraph-detail-chart';
+            document.getElementById('streamgraphDetailTitle').textContent = `${bigTheme}：小主题下钻详情`;
+
+            if (detail.values.length === 0 || detail.themes.length === 0) {
+                container.className = 'detail-placeholder';
+                container.innerHTML = '该大主题暂无可展示的小主题数据';
+                return;
+            }
+
+            const baseColor = BIG_COLORS[bigTheme] || '#3182ce';
+            const range = detail.themes.map((_, i) => {
+                const lightness = 30 + Math.round((i / Math.max(detail.themes.length - 1, 1)) * 42);
+                return `hsl(${hexToHue(baseColor)}, 58%, ${lightness}%)`;
+            });
+            const useLines = metric === 'count' && detail.themes.length > 8;
+            const yScale = { "nice": true };
+            const yAxis = null;
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 220,
+                "data": { "values": detail.values },
+                "mark": useLines
+                    ? { "type": "line", "interpolate": "monotone", "strokeWidth": 2.2, "point": { "size": 34, "filled": true } }
+                    : { "type": "area", "interpolate": "monotone", "opacity": 0.72, "stroke": "#334155", "strokeWidth": 0.55 },
+                "encoding": {
+                    "x": {
+                        "field": "year",
+                        "type": "ordinal",
+                        "title": null,
+                        "axis": { "labelAngle": 0, "domain": false, "grid": false, "labelColor": "#1a1a2e" }
+                    },
+                    "y": {
+                        "field": yField,
+                        "type": "quantitative",
+                        "stack": !useLines ? "center" : null,
+                        "scale": yScale,
+                        "axis": yAxis
+                    },
+                    "color": {
+                        "field": "theme",
+                        "type": "nominal",
+                        "title": "小主题",
+                        "scale": { "domain": detail.themes, "range": range },
+                        "legend": { "orient": "right", "labelFontSize": 9, "titleFontSize": 10, "symbolSize": 48 }
+                    },
+                    "tooltip": [
+                        { "field": "year", "type": "ordinal", "title": "年份" },
+                        { "field": "theme", "type": "nominal", "title": "小主题" },
+                        { "field": "count", "type": "quantitative", "title": "讨论频次" },
+                        { "field": "avgSentiment", "type": "quantitative", "title": "平均情感得分", "format": ".2f" }
+                    ]
+                },
+                "config": {
+                    "view": { "stroke": "transparent" },
+                    "axis": { "labelFont": "Microsoft YaHei", "titleFont": "Microsoft YaHei", "grid": false },
+                    "legend": { "labelFont": "Microsoft YaHei", "titleFont": "Microsoft YaHei" }
+                }
+            };
+
+            vegaEmbed('#streamgraphDetailChart', spec, { actions: false }).then(res => {
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum && item.datum.theme) {
+                        const subTheme = item.datum.theme;
+                        const bigTheme = bigThemeMap[subTheme] || '其他';
+                        window.location.href = `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                    }
+                });
+            });
+        }
+
+        function hexToHue(hex) {
+            const value = hex.replace('#', '');
+            const r = parseInt(value.substring(0, 2), 16) / 255;
+            const g = parseInt(value.substring(2, 4), 16) / 255;
+            const b = parseInt(value.substring(4, 6), 16) / 255;
+            const max = Math.max(r, g, b);
+            const min = Math.min(r, g, b);
+            if (max === min) return 210;
+            const d = max - min;
+            let h = max === r ? ((g - b) / d) % 6 : max === g ? (b - r) / d + 2 : (r - g) / d + 4;
+            h = Math.round(h * 60);
+            return h < 0 ? h + 360 : h;
+        }
+
+        function analyzeStreamgraph() {
+            const metric = document.getElementById('metricSelect').value;
+            const metricDesc = metric === 'count' ? '讨论频次' : '平均情感得分';
+            
+            const bigData = aggregateStreamData('big');
+            const streamData = bigData.values.map(v => ({
+                year: v.year,
+                theme: v.theme,
+                count: v.count,
+                avgSentiment: v.num > 0 ? v.sumSent / v.num : 0.5
+            }));
+            
+            if (streamData.length === 0) {
+                document.getElementById('streamgraphInsight').innerHTML =
+                    `<span class="label">🌊 智能解读：</span>暂无足够数据进行分析，请确保数据至少包含2个年份。`;
+                return;
+            }
+            
+            const years = [...new Set(streamData.map(d => d.year))].sort();
+            const themeTotals = {};
+            streamData.forEach(d => {
+                if (!themeTotals[d.year]) themeTotals[d.year] = {};
+                themeTotals[d.year][d.theme] = metric === 'count' ? (d.count || 0) : (d.avgSentiment || 0.5);
+            });
+            
+            const yearlyTotals = {};
+            years.forEach(y => {
+                yearlyTotals[y] = Object.values(themeTotals[y]).reduce((s, v) => s + v, 0);
+            });
+            
+            const growthRates = [];
+            for (let i = 1; i < years.length; i++) {
+                const prev = yearlyTotals[years[i-1]];
+                const curr = yearlyTotals[years[i]];
+                if (prev > 0) {
+                    growthRates.push({ year: years[i], rate: (curr - prev) / prev * 100 });
+                }
+            }
+            
+            let growthAnalysis = '';
+            if (growthRates.length > 0) {
+                growthAnalysis = `<strong>年度变化趋势：</strong>`;
+                growthRates.forEach(g => {
+                    const trend = g.rate > 10 ? '大幅增长' : (g.rate > 0 ? '小幅增长' : (g.rate < -10 ? '大幅下降' : '基本稳定'));
+                    growthAnalysis += `${g.year}年较上年${trend}（${g.rate > 0 ? '+' : ''}${g.rate.toFixed(1)}%）；`;
+                });
+                growthAnalysis += `<br><br>`;
+            }
+            
+            const themeYearlyData = {};
+            streamData.forEach(d => {
+                if (!themeYearlyData[d.theme]) themeYearlyData[d.theme] = [];
+                themeYearlyData[d.theme].push({ year: d.year, value: metric === 'count' ? (d.count || 0) : (d.avgSentiment || 0.5) });
+            });
+            
+            let topGrowingThemes = [];
+            Object.entries(themeYearlyData).forEach(([theme, data]) => {
+                if (data.length >= 2) {
+                    const first = data[0].value;
+                    const last = data[data.length-1].value;
+                    if (first > 0) {
+                        topGrowingThemes.push({ theme, growth: (last - first) / first * 100, first, last });
+                    }
+                }
+            });
+            topGrowingThemes.sort((a, b) => b.growth - a.growth);
+            
+            const topGrowthStr = topGrowingThemes.slice(0, 3).map(t => 
+                `“${t.theme}”(${t.growth > 0 ? '+' : ''}${t.growth.toFixed(1)}%)`
+            ).join('、');
+            
+            const bottomGrowthStr = topGrowingThemes.slice(-3).reverse().map(t => 
+                `“${t.theme}”(${t.growth > 0 ? '+' : ''}${t.growth.toFixed(1)}%)`
+            ).join('、');
+            
+            let insightHtml = `<span class="label">🌊 智能解读：</span><strong>图表说明：</strong>主视图用灰色总体评价作为基准，叠加大主题河流，可判断整体热度与主题结构的同步变化。当前指标为 <strong>${metricDesc}</strong>。${metric === 'count' ? '河流厚度代表主题讨论量。' : '河流厚度代表平均情感得分，越宽表示越正向。'}<br><br>`;
+            
+            insightHtml += growthAnalysis;
+            
+            insightHtml += `<strong>主题趋势对比：</strong>`;
+            if (topGrowingThemes.length > 0) {
+                insightHtml += `讨论量/情感增长最快的主题为 ${topGrowthStr}；`;
+                const declining = topGrowingThemes.filter(t => t.growth < 0);
+                if (declining.length > 0) {
+                    insightHtml += `下降较为明显的主题为 ${bottomGrowthStr}。`;
+                }
+            }
+            insightHtml += `<br><br>`;
+            
+            if (metric === 'count') {
+                const peakYear = Object.entries(yearlyTotals).reduce((max, [y, v]) => v > max[1] ? [y, v] : max, ['', 0]);
+                insightHtml += `<strong>热度峰值：</strong>整体讨论热度在 ${peakYear[0]} 年达到峰值（${peakYear[1].toLocaleString()}次）。`;
+            } else {
+                const bestYear = Object.entries(yearlyTotals).reduce((max, [y, v]) => v > max[1] ? [y, v] : max, ['', 0]);
+                const worstYear = Object.entries(yearlyTotals).reduce((min, [y, v]) => v < min[1] ? [y, v] : min, ['', Infinity]);
+                insightHtml += `<strong>情感波动：</strong>整体情感得分最高的年份为 ${bestYear[0]}（${bestYear[1].toFixed(2)}），最低为 ${worstYear[0]}（${worstYear[1].toFixed(2)}）。`;
+            }
+            
+            insightHtml += `<br><br><strong>💡 交互提示：</strong>点击上方某条大主题河流后，下方会展开对应小主题的年度趋势，可深入分析子主题的演变规律。`;
+            
+            document.getElementById('streamgraphInsight').innerHTML = insightHtml;
+        }
+
+        function resetStreamgraph() {
+            selectedStreamBigTheme = null;
+            renderStreamgraph();
+        }
+
+        function populateTrendFilter() { renderStreamgraph(); }
+
+        // -------------------- 气泡图 --------------------
+        function renderBubbleChart() {
+            const topicStats = {};
+            fullData.forEach(item => {
+                if (!item.小主题详情) return;
+                try {
+                    const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                    details.forEach(d => {
+                        const t = d.主题;
+                        if (!topicStats[t]) topicStats[t] = { sum: 0, count: 0, big: bigThemeMap[t] || '其他' };
+                        topicStats[t].sum += d.情感得分;
+                        topicStats[t].count++;
+                    });
+                } catch (e) {}
+            });
+            const values = Object.keys(topicStats).map(t => {
+                const s = topicStats[t];
+                return {
+                    topic: t,
+                    freq: s.count,
+                    sentiment: s.sum / s.count,
+                    bigTheme: s.big,
+                };
+            }).filter(v => v.freq > 0);
+
+            if (values.length === 0) {
+                document.getElementById('bubbleChart').innerHTML =
+                    '<p style="color:#94a3b8;text-align:center;padding:100px 0;">暂无主题数据</p>';
+                return;
+            }
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 380,
+                "data": { "values": values },
+                "layer": [{
+                    "mark": { "type": "circle", "tooltip": true, "opacity": 0.85 },
+                    "encoding": {
+                        "x": {
+                            "field": "freq",
+                            "type": "quantitative",
+                            "scale": { "type": "pow", "exponent": 0.55, "domain": [0, 6000], "clamp": true },
+                            "title": "提及频次",
+                            "axis": {
+                                "values": [0, 100, 400, 1000, 2000, 4000, 6000],
+                                "labelColor": "#1a1a2e",
+                                "titleColor": "#1a1a2e"
+                            }
+                        },
+                        "y": {
+                            "field": "sentiment",
+                            "type": "quantitative",
+                            "title": "情感得分",
+                            "scale": { "domain": [0, 1] },
+                            "axis": { "labelColor": "#1a1a2e", "titleColor": "#1a1a2e" }
+                        },
+                        "size": {
+                            "field": "freq",
+                            "type": "quantitative",
+                            "scale": { "range": [200, 1700] },
+                            "legend": {
+                                "title": "freq",
+                                "titleColor": "#1a1a2e",
+                                "labelColor": "#1a1a2e",
+                                "symbolSize": 80,
+                                "symbolFillColor": "#1a1a2e",
+                                "symbolStrokeColor": "#1a1a2e"
+                            }
+                        },
+                        "color": {
+                            "field": "bigTheme",
+                            "type": "nominal",
+                            "scale": { "domain": bigThemes, "range": BIG_COLOR_LIST },
+                            "legend": {
+                                "title": "大主题",
+                                "labelColor": "#1a1a2e",
+                                "titleColor": "#1a1a2e",
+                                "symbolColor": "#1a1a2e"
+                            }
+                        },
+                        "tooltip": [
+                            { "field": "topic", "title": "主题" },
+                            { "field": "freq", "title": "频次" },
+                            { "field": "sentiment", "title": "情感得分", "format": ".2f" },
+                            { "field": "bigTheme", "title": "大主题" }
+                        ]
+                    }
+                }, {
+                    "mark": { "type": "text", "color": "black", "fontSize": 8, "align": "center",
+                        "baseline": "middle" },
+                    "encoding": {
+                        "x": {
+                            "field": "freq",
+                            "type": "quantitative",
+                            "scale": { "type": "pow", "exponent": 0.55, "domain": [0, 6000], "clamp": true }
+                        },
+                        "y": { "field": "sentiment", "type": "quantitative" },
+                        "text": { "field": "topic", "type": "nominal" }
+                    }
+                }, {
+                    "mark": { "type": "rule", "color": "#ef4444", "strokeDash": [4, 4], "strokeWidth": 2,
+                        "tooltip": true },
+                    "encoding": {
+                        "y": { "datum": 0.4 },
+                        "tooltip": { "value": "情感得分0.4以下主题请注意", "type": "nominal" }
+                    }
+                }],
+                "config": {
+                    "background": "transparent",
+                    "view": { "stroke": "transparent" },
+                    "axis": { "grid": false },
+                    "tooltip": {
+                        "background": "#222",
+                        "color": "#fff",
+                        "stroke": "#555"
+                    }
+                }
+            };
+
+            vegaEmbed('#bubbleChart', spec, { actions: false }).then(res => {
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum?.topic) {
+                        const topic = item.datum.topic;
+                        const bigTheme = bigThemeMap[topic] || '其他';
+                        window.location.href =
+                            `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                    }
+                });
+            });
+        }
+
+        function analyzeBubble() {
+            const topicStats = {};
+            fullData.forEach(item => {
+                if (!item.小主题详情) return;
+                try {
+                    const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                    details.forEach(d => {
+                        const t = d.主题;
+                        if (!topicStats[t]) topicStats[t] = { sum: 0, count: 0, big: bigThemeMap[t] || '其他' };
+                        topicStats[t].sum += d.情感得分;
+                        topicStats[t].count++;
+                    });
+                } catch (e) {}
+            });
+            
+            const values = Object.keys(topicStats).map(t => {
+                const s = topicStats[t];
+                return {
+                    topic: t,
+                    freq: s.count,
+                    sentiment: s.sum / s.count,
+                    bigTheme: s.big,
+                };
+            }).filter(v => v.freq > 0);
+            
+            const sortedByFreq = [...values].sort((a, b) => b.freq - a.freq);
+            const sortedBySentiment = [...values].sort((a, b) => b.sentiment - a.sentiment);
+            
+            const top5Freq = sortedByFreq.slice(0, 5);
+            const top5FreqStr = top5Freq.map(t => `“${t.topic}”(${t.freq.toLocaleString()}条，情感${t.sentiment.toFixed(2)})`).join('、');
+            
+            const top5Positive = sortedBySentiment.filter(t => t.sentiment > 0.55).slice(0, 3);
+            const top5PositiveStr = top5Positive.length > 0 
+                ? top5Positive.map(t => `“${t.topic}”(${t.sentiment.toFixed(2)})`).join('、')
+                : '暂无高情感主题';
+            
+            const top5Negative = sortedBySentiment.filter(t => t.sentiment < 0.45).slice(-3).reverse();
+            const top5NegativeStr = top5Negative.length > 0
+                ? top5Negative.map(t => `“${t.topic}”(${t.sentiment.toFixed(2)})`).join('、')
+                : '暂无低情感主题';
+            
+            const bigThemeStats = {};
+            values.forEach(v => {
+                if (!bigThemeStats[v.bigTheme]) {
+                    bigThemeStats[v.bigTheme] = { totalFreq: 0, sumSentiment: 0, count: 0 };
+                }
+                bigThemeStats[v.bigTheme].totalFreq += v.freq;
+                bigThemeStats[v.bigTheme].sumSentiment += v.sentiment;
+                bigThemeStats[v.bigTheme].count++;
+            });
+            
+            let bigThemeAnalysis = '';
+            Object.entries(bigThemeStats).forEach(([big, stats]) => {
+                const avgSent = stats.sumSentiment / stats.count;
+                const freqPercent = stats.totalFreq / values.reduce((s, v) => s + v.freq, 0) * 100;
+                const sentimentLevel = avgSent > 0.55 ? '偏正向' : (avgSent < 0.45 ? '偏负向' : '偏中性');
+                bigThemeAnalysis += `${big}（讨论量占比${freqPercent.toFixed(1)}%，平均情感${avgSent.toFixed(2)}，${sentimentLevel}）；`;
+            });
+            
+            let insightHtml = `<span class="label">💬 智能解读：</span><strong>图表说明：</strong>气泡大小代表评论数，颜色代表大主题，横轴为讨论频次，纵轴为情感得分。<br><br>`;
+            
+            insightHtml += `<strong>高频核心主题：</strong>讨论量最高的5个主题为 ${top5FreqStr}。这些主题是舆情讨论的核心焦点，建议重点关注。<br><br>`;
+            
+            if (top5Positive.length > 0) {
+                insightHtml += `<strong>正面热点主题：</strong>情感得分较高的主题为 ${top5PositiveStr}，这些话题舆论情绪积极，可作为正面宣传的重点方向。<br><br>`;
+            }
+            
+            if (top5Negative.length > 0) {
+                insightHtml += `<strong>负面风险主题：</strong>情感得分较低的主题为 ${top5NegativeStr}，这些话题负面情绪较集中，需重点监测和干预。<br><br>`;
+            }
+            
+            insightHtml += `<strong>大主题分布：</strong>${bigThemeAnalysis}<br><br>`;
+            
+            const totalComments = values.reduce((s, v) => s + v.freq, 0);
+            const avgSentiment = values.reduce((s, v) => s + v.sentiment * v.freq, 0) / totalComments;
+            insightHtml += `<strong>总体概况：</strong>共分析 ${totalComments.toLocaleString()} 条评论，覆盖 ${values.length} 个小主题，整体平均情感得分 ${avgSentiment.toFixed(2)}。`;
+            
+            insightHtml += `<br><br><strong>💡 操作提示：</strong>点击任意气泡可跳转至传播内容侧查看相关视频，深入了解具体传播内容与评论互动情况。`;
+            
+            document.getElementById('bubbleInsight').innerHTML = insightHtml;
+        }
+
+        // -------------------- 热力图 --------------------
+        function renderHeatmap() {
+            const platforms = ['B站', '微博', '抖音', '知乎'];
+            const heatData = [];
+            platforms.forEach(p => {
+                bigThemes.forEach(big => {
+                    const subThemes = subThemesByBig[big] || [];
+                    const items = fullData.filter(item => {
+                        if (item.平台 !== p) return false;
+                        if (!item.小主题详情) return false;
+                        try {
+                            const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                            return details.some(d => subThemes.includes(d.主题));
+                        } catch (e) { return false; }
+                    });
+                    let count = items.length;
+                    let sumSent = 0,
+                        sentCount = 0;
+                    items.forEach(item => {
+                        try {
+                            const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                            details.forEach(d => {
+                                if (subThemes.includes(d.主题)) {
+                                    sumSent += d.情感得分;
+                                    sentCount++;
+                                }
+                            });
+                        } catch (e) {}
+                    });
+                    const avgSent = sentCount > 0 ? (sumSent / sentCount) : 0.5;
+                    heatData.push({ platform: p, bigTheme: big, count: count, avgSentiment: avgSent });
+                });
+            });
+
+            const spec = {
+                "$schema": "https://vega.github.io/schema/vega-lite/v5.json",
+                "width": "container",
+                "height": 360,
+                "data": { "values": heatData },
+                "layer": [{
+                    "mark": { "type": "rect", "tooltip": true },
+                    "encoding": {
+                        "x": { "field": "bigTheme", "type": "nominal", "title": "大主题",
+                            "axis": { "labelAngle": 0, "labelFontSize": 10 } },
+                        "y": { "field": "platform", "type": "nominal", "title": "平台" },
+                        "color": {
+                            "field": "count",
+                            "type": "quantitative",
+                            "scale": { "scheme": "reds" },
+                            "legend": { "orient": "right", "title": "评论数" }
+                        },
+                        "tooltip": [
+                            { "field": "platform", "title": "平台" },
+                            { "field": "bigTheme", "title": "大主题" },
+                            { "field": "count", "title": "评论数" },
+                            { "field": "avgSentiment", "title": "情感均值", "format": ".2f" }
+                        ]
+                    }
+                }, {
+                    "mark": { "type": "text", "color": "black", "fontSize": 12, "align": "center",
+                        "baseline": "middle" },
+                    "encoding": {
+                        "x": { "field": "bigTheme", "type": "nominal" },
+                        "y": { "field": "platform", "type": "nominal" },
+                        "text": { "field": "avgSentiment", "type": "quantitative", "format": ".2f" }
+                    }
+                }],
+                "config": { "view": { "stroke": "transparent" } }
+            };
+
+            vegaEmbed('#heatmapChart', spec, { actions: false }).then(res => {
+                res.view.addEventListener('click', (event, item) => {
+                    if (item && item.datum && item.datum.platform === 'B站') {
+                        const bigTheme = item.datum.bigTheme || '其他';
+                        window.location.href = `content_communication.html?bigTheme=${encodeURIComponent(bigTheme)}`;
+                    }
+                });
+            });
+        }
+
+        function analyzeHeatmap() {
+            const platforms = ['B站', '微博', '抖音', '知乎'];
+            const heatData = [];
+            platforms.forEach(p => {
+                bigThemes.forEach(big => {
+                    const subThemes = subThemesByBig[big] || [];
+                    const items = fullData.filter(item => {
+                        if (item.平台 !== p) return false;
+                        if (!item.小主题详情) return false;
+                        try {
+                            const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                            return details.some(d => subThemes.includes(d.主题));
+                        } catch (e) { return false; }
+                    });
+                    let count = items.length;
+                    let sumSent = 0, sentCount = 0;
+                    items.forEach(item => {
+                        try {
+                            const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                            details.forEach(d => {
+                                if (subThemes.includes(d.主题)) {
+                                    sumSent += d.情感得分;
+                                    sentCount++;
+                                }
+                            });
+                        } catch (e) {}
+                    });
+                    const avgSent = sentCount > 0 ? sumSent / sentCount : 0.5;
+                    heatData.push({ platform: p, bigTheme: big, count, avgSent });
+                });
+            });
+            
+            const platformTotals = {};
+            platforms.forEach(p => {
+                platformTotals[p] = heatData
+                    .filter(d => d.platform === p)
+                    .reduce((sum, d) => sum + d.count, 0);
+            });
+            
+            const themeTotals = {};
+            bigThemes.forEach(big => {
+                themeTotals[big] = heatData
+                    .filter(d => d.bigTheme === big)
+                    .reduce((sum, d) => sum + d.count, 0);
+            });
+            
+            const sortedPlatforms = Object.entries(platformTotals).sort((a, b) => b[1] - a[1]);
+            const sortedThemes = Object.entries(themeTotals).sort((a, b) => b[1] - a[1]);
+            
+            const topPlatform = sortedPlatforms[0];
+            const topTheme = sortedThemes[0];
+            
+            const hotCells = heatData.filter(d => d.count > 1000).sort((a, b) => b.count - a.count);
+            const hotCellsStr = hotCells.slice(0, 5).map(c => 
+                `${c.platform}×${c.bigTheme}（${c.count.toLocaleString()}条，情感${c.avgSent.toFixed(2)}）`
+            ).join('、');
+            
+            const coldCells = heatData.filter(d => d.count < 100).sort((a, b) => a.count - b.count);
+            const coldCellsStr = coldCells.slice(0, 5).map(c => 
+                `${c.platform}×${c.bigTheme}（${c.count}条）`
+            ).join('、');
+            
+            const lowSentimentCells = heatData.filter(d => d.count > 500 && d.avgSent < 0.4).sort((a, b) => a.avgSent - b.avgSent);
+            const lowSentimentStr = lowSentimentCells.length > 0
+                ? lowSentimentCells.map(c => `${c.platform}×${c.bigTheme}（情感${c.avgSent.toFixed(2)}）`).join('、')
+                : '暂无明显低情感区域';
+            
+            const highSentimentCells = heatData.filter(d => d.count > 500 && d.avgSent > 0.6).sort((a, b) => b.avgSent - a.avgSent);
+            const highSentimentStr = highSentimentCells.length > 0
+                ? highSentimentCells.map(c => `${c.platform}×${c.bigTheme}（情感${c.avgSent.toFixed(2)}）`).join('、')
+                : '暂无明显高情感区域';
+            
+            let insightHtml = `<span class="label">🔥 智能解读：</span><strong>图表说明：</strong>热力图展示平台×大主题的交叉分布，颜色深浅表示评论数量，单元格内数字为情感得分。<br><br>`;
+            
+            insightHtml += `<strong>讨论量分布：</strong>`;
+            sortedPlatforms.forEach(([p, total]) => {
+                const percent = total / heatData.reduce((s, d) => s + d.count, 0) * 100;
+                insightHtml += `${p}评论量${total.toLocaleString()}条（占比${percent.toFixed(1)}%）；`;
+            });
+            insightHtml += `<br><br>`;
+            
+            insightHtml += `<strong>主题热度排名：</strong>`;
+            sortedThemes.forEach(([theme, total]) => {
+                insightHtml += `${theme}（${total.toLocaleString()}条）；`;
+            });
+            insightHtml += `<br><br>`;
+            
+            if (hotCells.length > 0) {
+                insightHtml += `<strong>热点区域：</strong>评论量超过1000条的高热度区域为 ${hotCellsStr}。这些区域是舆情讨论的密集地带。<br><br>`;
+            }
+            
+            if (coldCells.length > 0) {
+                insightHtml += `<strong>冷点区域：</strong>评论量较少的区域为 ${coldCellsStr}，这些话题尚未引起广泛关注。<br><br>`;
+            }
+            
+            if (lowSentimentStr !== '暂无明显低情感区域') {
+                insightHtml += `<strong>风险预警区域：</strong>${lowSentimentStr}，这些区域讨论量较高但情感得分偏低，需重点关注舆情走向，及时回应公众关切。<br><br>`;
+            }
+            
+            if (highSentimentStr !== '暂无明显高情感区域') {
+                insightHtml += `<strong>正面亮点区域：</strong>${highSentimentStr}，这些区域讨论量较高且情感得分正向，可作为正面内容投放的重点方向。<br><br>`;
+            }
+            
+            insightHtml += `<strong>💡 操作提示：</strong>点击 B 站行可跳转至传播内容侧查看相关视频，深入分析传播内容与评论接收的匹配情况。`;
+            
+            document.getElementById('heatmapInsight').innerHTML = insightHtml;
+        }
+
+        // -------------------- 智能对话框（保留，功能未变） --------------------
+        function toggleChatbot() {
+            const container = document.getElementById('chatbot');
+            const toggle = document.getElementById('chatToggle');
+            container.classList.toggle('collapsed');
+            toggle.textContent = container.classList.contains('collapsed') ? '+' : '−';
+        }
+
+        async function sendChatMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            addChatMessage('user', msg);
+            input.value = '';
+            const loadingId = addLoadingMessage();
+            try {
+                const response = await fetch(DIFY_API_URL, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${DIFY_API_KEY}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        inputs: {},
+                        query: msg,
+                        response_mode: 'streaming',
+                        conversation_id: conversationId,
+                        user: 'web-user'
+                    })
+                });
+                removeLoadingMessage(loadingId);
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    console.error('API 错误:', errorText);
+                    addChatMessage('bot', '❌ 服务请求失败，请检查 API 密钥或网络。');
+                    return;
+                }
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder('utf-8');
+                let buffer = '';
+                let botMessageDiv = null;
+                let fullAnswer = '';
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    buffer += decoder.decode(value, { stream: true });
+                    const lines = buffer.split('\n');
+                    buffer = lines.pop() || '';
+                    for (const line of lines) {
+                        const trimmedLine = line.trim();
+                        if (!trimmedLine) continue;
+                        if (trimmedLine.startsWith('data: ')) {
+                            const dataStr = trimmedLine.slice(6);
+                            if (dataStr === '[DONE]') continue;
+                            try {
+                                const event = JSON.parse(dataStr);
+                                console.log('收到事件:', event);
+                                if (event.event === 'agent_message' || event.event === 'message') {
+                                    const answer = event.answer || '';
+                                    if (answer) {
+                                        fullAnswer += answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        // 流式过程中实时追加原始内容（最终会被清洗覆盖）
+                                        botMessageDiv.textContent += answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'agent_thought') {
+                                    if (event.answer) {
+                                        fullAnswer += event.answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        botMessageDiv.textContent += event.answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'node_finished' && event.data && event.data.output) {
+                                    const output = event.data.output;
+                                    if (output) {
+                                        let answer = typeof output === 'string' ? output : JSON.stringify(output);
+                                        fullAnswer += answer;
+                                        if (!botMessageDiv) {
+                                            const container = document.getElementById('chatMessages');
+                                            const div = document.createElement('div');
+                                            div.className = 'chat-message bot';
+                                            div.innerHTML = `<div class="chat-bubble bot"></div>`;
+                                            container.appendChild(div);
+                                            botMessageDiv = div.querySelector('.chat-bubble');
+                                        }
+                                        botMessageDiv.textContent += answer;
+                                        const container = document.getElementById('chatMessages');
+                                        container.scrollTop = container.scrollHeight;
+                                    }
+                                } else if (event.event === 'message_end' || event.event === 'agent_end' || event
+                                    .event === 'workflow_finished') {
+                                    if (event.conversation_id) {
+                                        conversationId = event.conversation_id;
+                                    }
+                                } else if (event.event === 'error') {
+                                    console.error('流式错误:', event);
+                                    if (!botMessageDiv) {
+                                        addChatMessage('bot', '❌ 处理过程中出现错误。');
+                                    }
+                                }
+                            } catch (e) {
+                                console.warn('解析流数据失败:', e, dataStr);
+                            }
+                        }
+                    }
+                }
+                // 流式循环结束，进行清洗并覆盖最终显示
+                if (!botMessageDiv && !fullAnswer) {
+                    addChatMessage('bot', '⚠️ 未获取到有效回复，可能 Agent 没有返回内容。');
+                } else if (botMessageDiv) {
+                    // 清洗最终答案
+                    const cleaned = cleanAssistantReply(fullAnswer);
+                    // 将换行转换为 <br> 并转义特殊字符以防止 XSS
+                    const escaped = cleaned.replace(/[&<>"]/g, function(m) {
+                        if (m === '&') return '&amp;';
+                        if (m === '<') return '&lt;';
+                        if (m === '>') return '&gt;';
+                        if (m === '"') return '&quot;';
+                        return m;
+                    });
+                    botMessageDiv.innerHTML = escaped.replace(/\n/g, '<br>');
+                    const container = document.getElementById('chatMessages');
+                    container.scrollTop = container.scrollHeight;
+                }
+            } catch (error) {
+                console.error('网络请求异常:', error);
+                removeLoadingMessage(loadingId);
+                addChatMessage('bot', '🌐 网络连接异常，请检查网络后重试。');
+            }
+        }
+
+        function sendPreset(type) {
+            const s = window._stats || { total: 0, avgSentiment: 0.5, positiveRatio: 0 };
+            
+            if (type === '整体舆情') {
+                const topThemes = getTopSubThemes(3);
+                const topThemeStr = topThemes.map(t => `“${t.name}”`).join('和');
+                const sentimentDesc = s.avgSentiment >= 0.55 ? '偏正向' : (s.avgSentiment <= 0.45 ? '偏负向' : '偏中性');
+                const reply = `整体舆情分析：总评论数${s.total.toLocaleString()}，平均情感得分${s.avgSentiment.toFixed(2)}，正面占比约${s.positiveRatio.toFixed(1)}%。主要话题集中在${topThemeStr}，情感${sentimentDesc}。`;
+                addChatMessage('bot', reply);
+                return;
+            }
+            
+            if (type === '平台差异') {
+                const platformStats = getPlatformSentimentStats();
+                let maxPosPlatform = '', maxPosRatio = 0;
+                let maxNegPlatform = '', maxNegRatio = 0;
+                let maxTotalPlatform = '', maxTotal = 0;
+                platformStats.forEach(p => {
+                    if (p.total > maxTotal) { maxTotal = p.total; maxTotalPlatform = p.platform; }
+                    if (p.positiveRatio > maxPosRatio) { maxPosRatio = p.positiveRatio; maxPosPlatform = p.platform; }
+                    if (p.negativeRatio > maxNegRatio) { maxNegRatio = p.negativeRatio; maxNegPlatform = p.platform; }
+                });
+                const reply = `平台差异分析：${maxTotalPlatform}评论量最高（${maxTotal.toLocaleString()}条）；${maxPosPlatform}正向占比最高（${maxPosRatio.toFixed(1)}%）；${maxNegPlatform}负面占比相对较高（${maxNegRatio.toFixed(1)}%），建议加强舆情监测。`;
+                addChatMessage('bot', reply);
+                return;
+            }
+            
+            if (type === '主题关系') {
+                const topThemes = getTopSubThemes(5);
+                const coreTheme = topThemes[0] ? topThemes[0].name : '社会责任';
+                const relatedThemes = topThemes.slice(1, 4).map(t => `“${t.name}”`).join('、');
+                const reply = `主题关系分析：网络图显示“${coreTheme}”与${relatedThemes}等主题紧密关联，形成核心讨论群组，其中血站管理类话题相互关联度最高。`;
+                addChatMessage('bot', reply);
+                return;
+            }
+            
+            if (type === '风险预警') {
+                const lowSentimentThemes = getLowSentimentThemes(4);
+                const riskStr = lowSentimentThemes.map(t => `“${t.name}”(${t.score.toFixed(2)})`).join('、');
+                const reply = `风险预警：情感得分低于0.4的主题有${riskStr}，这些话题负面情绪较集中，需重点关注舆情走向，及时回应公众关切。`;
+                addChatMessage('bot', reply);
+                return;
+            }
+            
+            addChatMessage('bot', '请选择预设问题。');
+        }
+
+        function getTopSubThemes(topN = 5) {
+            const themeCount = {};
+            fullData.forEach(item => {
+                if (item.小主题详情) {
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            themeCount[t] = (themeCount[t] || 0) + 1;
+                        });
+                    } catch (e) {}
+                }
+            });
+            return Object.entries(themeCount)
+                .map(([name, count]) => ({ name, count }))
+                .sort((a, b) => b.count - a.count)
+                .slice(0, topN);
+        }
+
+        function getLowSentimentThemes(topN = 5) {
+            const themeStats = {};
+            fullData.forEach(item => {
+                if (item.小主题详情) {
+                    try {
+                        const details = JSON.parse(item.小主题详情.replace(/'/g, '"'));
+                        details.forEach(d => {
+                            const t = d.主题;
+                            if (!themeStats[t]) themeStats[t] = { sum: 0, count: 0 };
+                            themeStats[t].sum += d.情感得分;
+                            themeStats[t].count++;
+                        });
+                    } catch (e) {}
+                }
+            });
+            return Object.entries(themeStats)
+                .map(([name, s]) => ({ name, score: s.count > 0 ? s.sum / s.count : 0.5 }))
+                .filter(t => t.score < 0.5)
+                .sort((a, b) => a.score - b.score)
+                .slice(0, topN);
+        }
+
+        function getPlatformSentimentStats() {
+            const platforms = ['B站', '微博', '抖音', '知乎'];
+            const stats = {};
+            platforms.forEach(p => stats[p] = { total: 0, positive: 0, negative: 0, neutral: 0 });
+            fullData.forEach(item => {
+                const p = item.平台;
+                if (!stats[p]) return;
+                stats[p].total++;
+                const s = item.情感倾向;
+                if (s === '正向') stats[p].positive++;
+                else if (s === '负向') stats[p].negative++;
+                else stats[p].neutral++;
+            });
+            return platforms.map(p => ({
+                platform: p,
+                total: stats[p].total,
+                positiveRatio: stats[p].total > 0 ? stats[p].positive / stats[p].total * 100 : 0,
+                negativeRatio: stats[p].total > 0 ? stats[p].negative / stats[p].total * 100 : 0,
+                neutralRatio: stats[p].total > 0 ? stats[p].neutral / stats[p].total * 100 : 0
+            }));
+        }
+
+        function addLoadingMessage() {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message bot';
+            div.id = 'loading-' + Date.now();
+            div.innerHTML = `<div class="chat-bubble bot">🤔 思考中...</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+            return div.id;
+        }
+
+        function removeLoadingMessage(id) {
+            const el = document.getElementById(id);
+            if (el) el.remove();
+        }
+
+        function cleanAssistantReply(text) {
+            text = text.replace(/<think>[\s\S]*?<\/think>/g, '');
+            // 将单个换行替换为空格，保留双换行作为段落分隔
+            text = text.replace(/\n{2,}/g, '\n\n').replace(/([^\n])\n([^\n])/g, '$1 $2');
+            // 再按特殊符号插入换行
+            text = text.replace(/\*\*/g, '\n');
+            text = text.replace(/【/g, '\n【');
+            text = text.replace(/---/g, '\n---\n');
+            text = text.replace(/\n{3,}/g, '\n\n');
+            return text.trim();
+        }
+
+        function addChatMessage(type, text) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'chat-message ' + type;
+            let displayText = text;
+            if (type === 'bot') {
+                displayText = cleanAssistantReply(text);
+            }
+            const formattedText = type === 'bot' ? displayText.replace(/\n/g, '<br>') : displayText;
+            div.innerHTML = `<div class="chat-bubble ${type}">${formattedText}</div>`;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        // -------------------- 初始化 --------------------
+        window.onload = function() {
+            loadData();
+            populateTrendFilter();
+            const bigSelect = document.getElementById('bigThemeSelect');
+            bigSelect.innerHTML = '<option value="all">全部</option>';
+            bigThemes.forEach(b => {
+                const opt = document.createElement('option');
+                opt.value = b;
+                opt.textContent = b;
+                bigSelect.appendChild(opt);
+            });
+            bigSelect.onchange = function() {
+                updateSubFilter();
+                updatePlatformChart();
+            };
+            updateSubFilter();
+            renderPlatformChart();
+        };
+    </script>
+    <script>
+        // Expand a complete chart card without leaving this page.
+        (() => {
+            const cards = [...document.querySelectorAll('.chart-section')];
+            const refreshCharts = () => {
+                window.dispatchEvent(new Event('resize'));
+                document.querySelectorAll('.js-plotly-plot').forEach(plot => {
+                    if (window.Plotly && Plotly.Plots) Plotly.Plots.resize(plot);
+                });
+            };
+            // Vega tooltip coordinates are tied to the renderer size. Re-embed the
+            // active chart after a layout-mode change so hover/click remain exact.
+            const rerenderCard = card => {
+                if (card.querySelector('#networkChart')) renderNetwork();
+                else if (card.querySelector('#platformChart')) renderPlatformChart();
+                else if (card.querySelector('#boxplotChart')) renderBoxplot();
+                else if (card.querySelector('#streamgraphChart')) renderStreamgraph();
+                else if (card.querySelector('#bubbleChart')) renderBubbleChart();
+                else if (card.querySelector('#heatmapChart')) renderHeatmap();
+            };
+            const closeAll = () => {
+                const previouslyExpanded = cards.filter(card => card.classList.contains('is-expanded'));
+                cards.forEach(card => {
+                    card.classList.remove('is-expanded');
+                    const button = card.querySelector('.chart-expand-btn');
+                    if (button) {
+                        button.textContent = '展开';
+                        button.setAttribute('aria-label', '展开图表');
+                    }
+                });
+                document.body.classList.remove('chart-expanded');
+                setTimeout(() => {
+                    refreshCharts();
+                    previouslyExpanded.forEach(rerenderCard);
+                }, 60);
+            };
+            cards.forEach(card => {
+                const header = card.querySelector('.chart-header');
+                if (!header) return;
+                const button = document.createElement('button');
+                button.type = 'button';
+                button.className = 'chart-expand-btn';
+                button.textContent = '展开';
+                button.setAttribute('aria-label', '展开图表');
+                button.addEventListener('click', event => {
+                    event.stopPropagation();
+                    const opening = !card.classList.contains('is-expanded');
+                    closeAll();
+                    if (opening) {
+                        card.classList.add('is-expanded');
+                        document.body.classList.add('chart-expanded');
+                        button.textContent = '收起';
+                        button.setAttribute('aria-label', '收起图表');
+                        setTimeout(() => {
+                            rerenderCard(card);
+                            refreshCharts();
+                        }, 100);
+                    }
+                });
+                header.appendChild(button);
+            });
+            document.addEventListener('keydown', event => {
+                if (event.key === 'Escape') closeAll();
+            });
+        })();
+    </script>
+</body>
+</html>
