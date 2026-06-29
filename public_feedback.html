@@ -1044,7 +1044,7 @@
                 const targetName = targetNode ? targetNode.id : e.target;
                 edgeStrength.push({ 
                     pair: `${sourceName}—${targetName}`, 
-                    strength: e.value || 1 
+                    strength: e.weight || e.value || 1 
                 });
             });
             edgeStrength.sort((a, b) => b.strength - a.strength);
