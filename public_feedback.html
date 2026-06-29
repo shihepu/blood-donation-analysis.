@@ -1038,8 +1038,12 @@
             
             const edgeStrength = [];
             edges.forEach(e => {
+                const sourceNode = nodes.find(n => n.id === e.source);
+                const targetNode = nodes.find(n => n.id === e.target);
+                const sourceName = sourceNode ? sourceNode.id : e.source;
+                const targetName = targetNode ? targetNode.id : e.target;
                 edgeStrength.push({ 
-                    pair: `${e.source}—${e.target}`, 
+                    pair: `${sourceName}—${targetName}`, 
                     strength: e.value 
                 });
             });
