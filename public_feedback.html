@@ -1038,16 +1038,14 @@
             
             const edgeStrength = [];
             edges.forEach(e => {
-                if (e.value > 100) {
-                    edgeStrength.push({ 
-                        pair: `${e.source}—${e.target}`, 
-                        strength: e.value 
-                    });
-                }
+                edgeStrength.push({ 
+                    pair: `${e.source}—${e.target}`, 
+                    strength: e.value 
+                });
             });
             edgeStrength.sort((a, b) => b.strength - a.strength);
             const topEdges = edgeStrength.slice(0, 5);
-            const topEdgesStr = topEdges.map(e => `${e.pair}(${e.strength}次)`).join('、');
+            const topEdgesStr = topEdges.map(e => `${e.pair}(${e.strength}次)`).join('、') || '无明显强关联';
             
             const riskThemes = sortedNodes.filter(([name, freq]) => {
                 const big = THEME_MAPPING[name] || '其他';
